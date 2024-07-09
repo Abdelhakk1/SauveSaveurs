@@ -1,9 +1,9 @@
-import React, { useState } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, FlatList, Image, Alert } from 'react-native';
+import React, { useEffect, useState } from 'react';
+import { View, Text, TouchableOpacity, FlatList, Image, Alert, StyleSheet } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { useNavigation } from '@react-navigation/native';
 import { useDispatch, useSelector } from 'react-redux';
-import { clearOrderHistory } from '../Actions/storeActions';
+import { clearOrderHistory, fetchCurrentOrders, fetchHistoryOrders } from '../Actions/storeActions';
 
 const MyOrderScreen = () => {
   const navigation = useNavigation();
@@ -11,20 +11,28 @@ const MyOrderScreen = () => {
   const [activeTab, setActiveTab] = useState('Current');
   const currentOrders = useSelector(state => state.store.currentOrders);
   const historyOrders = useSelector(state => state.store.historyOrders);
+  const userId = useSelector(state => state.store.userInfo.id);
+
+  useEffect(() => {
+    if (userId) {
+      dispatch(fetchCurrentOrders(userId));
+      dispatch(fetchHistoryOrders(userId));
+    }
+  }, [userId, dispatch]);
 
   const renderOrderItem = ({ item }) => (
     <TouchableOpacity
       style={styles.orderItem}
-      onPress={() => activeTab === 'Current' && navigation.navigate('OrderPageScreen', { orderId: item.id })}
+      onPress={() => activeTab === 'Current' && navigation.navigate('OrderPageScreen', { order: item })}
       disabled={activeTab === 'History'}
+      key={item.id} // Ensure unique key
     >
-      <Image source={item.image ? { uri: item.image } : require('../assets/images/DALL·E 2024-04-26 00.04.20 - Create an image of a cozy coffee shop interior with wooden tables and chairs, warm ambient lighting, and some green plants in the corner. It should be.webp')} style={styles.orderImage} />
+      <Image source={{ uri: item.image_url }} style={styles.orderImage} />
       <View style={styles.orderDetails}>
-        <Text style={styles.orderTitle}>{item.title}</Text>
-        <Text style={styles.storeName}>{item.storeName}</Text>
-        <Text style={styles.orderDate}>{item.date}</Text>
-        <Text style={styles.orderPickupHour}>Pick up: {item.pickupHour}</Text>
-        <Text style={styles.orderPurchased}>Purchased: {item.purchased}</Text>
+        <Text style={styles.orderTitle}>{item.bag_name}</Text>
+        <Text style={styles.storeName}>{item.shop_name}</Text>
+        <Text style={styles.orderPickupHour}>Pick up: {item.pickup_hour}</Text>
+        <Text style={styles.orderDate}>{activeTab === 'Current' ? 'Reserved' : item.status}</Text>
       </View>
       {activeTab === 'Current' && <Icon name="chevron-right" size={24} color="#6b6e56" />}
     </TouchableOpacity>
@@ -32,16 +40,16 @@ const MyOrderScreen = () => {
 
   const handleClearHistory = () => {
     Alert.alert(
-      "Clear Order History",
-      "Are you sure you want to clear the order history?",
+      'Clear Order History',
+      'Are you sure you want to clear the order history?',
       [
-        { text: "Cancel", style: "cancel" },
+        { text: 'Cancel', style: 'cancel' },
         {
-          text: "Yes",
+          text: 'Yes',
           onPress: () => {
-            dispatch(clearOrderHistory());
-          }
-        }
+            dispatch(clearOrderHistory(userId)); // Pass userId
+          },
+        },
       ],
       { cancelable: false }
     );
@@ -72,6 +80,11 @@ const MyOrderScreen = () => {
         renderItem={renderOrderItem}
         keyExtractor={item => item.id}
         contentContainerStyle={styles.orderList}
+        ListEmptyComponent={() => (
+          <View style={styles.emptyContainer}>
+            <Text style={styles.emptyText}>No orders found</Text>
+          </View>
+        )}
       />
       {activeTab === 'History' && historyOrders.length > 0 && (
         <TouchableOpacity style={styles.clearButton} onPress={handleClearHistory}>
@@ -153,17 +166,13 @@ const styles = StyleSheet.create({
     color: '#6b6e56',
     fontWeight: 'bold',
   },
-  orderDate: {
-    fontSize: 14,
-    color: '#6b6e56',
-  },
   orderPickupHour: {
     fontSize: 14,
     color: '#6b6e56',
   },
-  orderPurchased: {
-    fontSize: 12,
-    color: '#777',
+  orderDate: {
+    fontSize: 14,
+    color: '#6b6e56',
   },
   clearButton: {
     backgroundColor: '#6b6e56',
@@ -176,6 +185,14 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontSize: 18,
     fontWeight: 'bold',
+  },
+  emptyContainer: {
+    alignItems: 'center',
+    marginTop: 20,
+  },
+  emptyText: {
+    fontSize: 18,
+    color: '#82866b',
   },
 });
 

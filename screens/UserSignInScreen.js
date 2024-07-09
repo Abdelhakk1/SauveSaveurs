@@ -12,13 +12,17 @@ import {
   Alert
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
+import { useDispatch } from 'react-redux';
 import { supabase } from '../database/supabaseClient';
+import { fetchUserInfo } from '../Actions/storeActions';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 
 const UserSignInScreen = () => {
   const navigation = useNavigation();
+  const dispatch = useDispatch();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
 
   const handleSignIn = async () => {
     if (!email || !password) {
@@ -32,9 +36,10 @@ const UserSignInScreen = () => {
       Alert.alert('Error', error.message);
     } else {
       const userId = data.user.id;
+      dispatch(fetchUserInfo(userId, 'client'));
       const { data: userProfile, error: profileError } = await supabase
         .from('clients')
-        .select('full_name')
+        .select('full_name, profile_pic_url')
         .eq('id', userId)
         .single();
 
@@ -42,13 +47,18 @@ const UserSignInScreen = () => {
         Alert.alert('Error', profileError.message);
       } else {
         const fullName = userProfile.full_name || 'User';
-        navigation.navigate('MainTabs', { screen: 'Home', params: { userId, fullName } });
+        const profilePic = userProfile.profile_pic_url || null;
+        navigation.navigate('MainTabs', { screen: 'Home', params: { userId, fullName, profilePicture: profilePic } });
       }
     }
   };
 
   const handleSignUpNavigation = () => {
     navigation.navigate('UserSignUpScreen'); 
+  };
+
+  const toggleShowPassword = () => {
+    setShowPassword(!showPassword);
   };
 
   return (
@@ -58,7 +68,7 @@ const UserSignInScreen = () => {
         style={styles.keyboardAvoidingView}
       >
         <ScrollView contentContainerStyle={styles.scrollContainer}>
-          <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
+          <TouchableOpacity onPress={() => navigation.navigate('RoleSelectionScreen')} style={styles.backButton}>
             <Icon name="arrow-left" size={24} color="#000" />
           </TouchableOpacity>
           <Text style={styles.headerTitle}>Sign In</Text>
@@ -73,17 +83,24 @@ const UserSignInScreen = () => {
               onChangeText={setEmail}
               keyboardType="email-address"
               autoCapitalize="none"
+              placeholderTextColor="rgba(0, 0, 0, 0.6)"
             />
             
             <Text style={styles.label}>Password</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="Enter your password"
-              value={password}
-              onChangeText={setPassword}
-              secureTextEntry
-              autoCapitalize="none"
-            />
+            <View style={styles.passwordContainer}>
+              <TextInput
+                style={styles.passwordInput}
+                placeholder="Enter your password"
+                value={password}
+                onChangeText={setPassword}
+                secureTextEntry={!showPassword}
+                autoCapitalize="none"
+                placeholderTextColor="rgba(0, 0, 0, 0.6)"
+              />
+              <TouchableOpacity onPress={toggleShowPassword} style={styles.eyeIcon}>
+                <Icon name={showPassword ? "eye" : "eye-off"} size={24} color="#6b6e56" />
+              </TouchableOpacity>
+            </View>
           </View>
 
           <View style={styles.footer}>
@@ -155,6 +172,24 @@ const styles = StyleSheet.create({
     borderRadius: 5,
     marginBottom: 20,
     height: 50, 
+    color: '#000',
+  },
+  passwordContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#000',
+    borderRadius: 5,
+    height: 50,
+  },
+  passwordInput: {
+    flex: 1,
+    paddingVertical: 8,
+    paddingHorizontal: 10,
+    color: '#000',
+  },
+  eyeIcon: {
+    marginRight: 10,
   },
   signUpButton: {
     backgroundColor: '#82866b',

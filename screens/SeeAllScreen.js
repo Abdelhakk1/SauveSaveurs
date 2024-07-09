@@ -4,7 +4,7 @@ import { View, Text, FlatList, StyleSheet, TouchableOpacity, Image } from 'react
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { useDispatch, useSelector } from 'react-redux';
 import { useNavigation } from '@react-navigation/native';
-import { toggleFavorite } from '../utils/favoriteUtils'; // Import the utility function
+import { toggleFavorite } from '../utils/favoriteUtils';
 
 const SeeAllScreen = ({ route }) => {
   const { title, data } = route.params;
@@ -16,14 +16,17 @@ const SeeAllScreen = ({ route }) => {
     const isFavorite = favorites.some(favorite => favorite.id === item.id);
 
     return (
-      <TouchableOpacity style={styles.card} onPress={() => navigation.navigate('StoreDetailsScreen', { store: item })}>
+      <TouchableOpacity
+        style={styles.card}
+        onPress={() => navigation.navigate('StoreDetailsScreen', { store: { id: item.id, bag_id: item.id, shop_id: item.shop_id } })}
+      >
         <Image
           source={{ uri: item.image_url || 'https://example.com/default-image.jpg' }}
           style={styles.cardImage}
         />
         <View style={styles.cardOverlay}>
           <View style={styles.cardQuantityContainer}>
-            <Text style={styles.cardQuantity}>{`${item.quantity} left`}</Text>
+            <Text style={styles.cardQuantity}>{`${item.quantity_left} left`}</Text>
           </View>
           <TouchableOpacity
             style={styles.heartIconContainer}
@@ -34,11 +37,7 @@ const SeeAllScreen = ({ route }) => {
         </View>
         <View style={styles.cardContent}>
           <Text style={styles.cardTitle}>{item.name}</Text>
-          <View style={styles.cardRatingContainer}>
-            <Icon name="star" size={16} color="#FFD700" />
-            <Text style={styles.cardRating}>{item.rating}</Text>
-          </View>
-          <Text style={styles.cardPrice}>${item.price}</Text>
+          <Text style={styles.cardPrice}>{`${item.price} DZD`}</Text>
           <Text style={styles.cardTime}>{item.pickup_hour} (Pick up)</Text>
         </View>
       </TouchableOpacity>
@@ -51,7 +50,7 @@ const SeeAllScreen = ({ route }) => {
       <FlatList
         data={data}
         renderItem={renderItem}
-        keyExtractor={item => item.id}
+        keyExtractor={item => item.id.toString()}
       />
     </View>
   );
@@ -65,9 +64,8 @@ SeeAllScreen.propTypes = {
         PropTypes.shape({
           id: PropTypes.string.isRequired,
           name: PropTypes.string.isRequired,
-          rating: PropTypes.string,
-          quantity: PropTypes.number.isRequired,
-          price: PropTypes.string.isRequired,
+          quantity_left: PropTypes.number.isRequired,
+          price: PropTypes.number.isRequired,
           pickup_hour: PropTypes.string.isRequired,
           image_url: PropTypes.string,
         })
@@ -86,6 +84,7 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     textAlign: 'center',
     marginVertical: 20,
+    paddingTop: 20,
   },
   card: {
     backgroundColor: '#FFFFFF',
@@ -138,16 +137,6 @@ const styles = StyleSheet.create({
   cardTitle: {
     fontSize: 16,
     fontWeight: 'bold',
-  },
-  cardRatingContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginTop: 8,
-  },
-  cardRating: {
-    marginLeft: 4,
-    fontSize: 16,
-    color: '#FFD700',
   },
   cardPrice: {
     fontSize: 18,

@@ -2,23 +2,28 @@ import React, { useState } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, FlatList } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { useNavigation } from '@react-navigation/native';
+import { useTranslation } from 'react-i18next';
 
 const languages = [
-  'English', 'French','Arabic'
+  { code: 'en', label: 'English' },
+  { code: 'fr', label: 'French' },
+  { code: 'ar', label: 'Arabic' }
 ];
 
 const ChangeLanguageScreen = () => {
   const navigation = useNavigation();
-  const [selectedLanguage, setSelectedLanguage] = useState('English');
+  const { t, i18n } = useTranslation();
+  const [selectedLanguage, setSelectedLanguage] = useState(i18n.language);
 
   const handleLanguageChange = (language) => {
-    setSelectedLanguage(language);
+    setSelectedLanguage(language.code);
+    i18n.changeLanguage(language.code);
   };
 
   const renderItem = ({ item }) => (
     <TouchableOpacity style={styles.languageItem} onPress={() => handleLanguageChange(item)}>
-      <Icon name={selectedLanguage === item ? "radiobox-marked" : "radiobox-blank"} size={24} color="#6b6e56" />
-      <Text style={styles.languageText}>{item}</Text>
+      <Icon name={selectedLanguage === item.code ? "radiobox-marked" : "radiobox-blank"} size={24} color="#6b6e56" />
+      <Text style={styles.languageText}>{t(item.label)}</Text>
     </TouchableOpacity>
   );
 
@@ -27,11 +32,11 @@ const ChangeLanguageScreen = () => {
       <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
         <Icon name="arrow-left" size={24} color="#6b6e56" />
       </TouchableOpacity>
-      <Text style={styles.pageTitle}>Change Language</Text>
+      <Text style={styles.pageTitle}>{t('Change Language')}</Text>
       <FlatList
         data={languages}
         renderItem={renderItem}
-        keyExtractor={item => item}
+        keyExtractor={item => item.code}
         contentContainerStyle={styles.languageList}
       />
     </View>

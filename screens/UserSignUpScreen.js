@@ -12,41 +12,68 @@ import {
   Alert
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
+import { useDispatch } from 'react-redux';
 import { supabase } from '../database/supabaseClient';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
+import { addNotification } from '../Actions/storeActions';
 
 const UserSignUpScreen = () => {
   const navigation = useNavigation();
+  const dispatch = useDispatch();
   const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
   const handleSignUp = async () => {
-    if (!fullName || !email || !password) {
-      Alert.alert('Error', 'Please fill out all fields.');
+    if (password !== confirmPassword) {
+      Alert.alert('Error', 'Passwords do not match.');
       return;
     }
 
-    const { data, error } = await supabase.auth.signUp({ email, password });
+    try {
+      const { data, error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          data: {
+            full_name: fullName
+          }
+        }
+      });
 
-    if (error) {
-      Alert.alert('Error', error.message);
-    } else {
-      const userId = data.user.id;
-      const { error: insertError } = await supabase
+      if (error) throw error;
+
+      const user = data.user;
+      if (!user) throw new Error('User creation failed');
+
+      await supabase
         .from('clients')
-        .insert([{ id: userId, email, full_name: fullName, password }]);
+        .insert([
+          { id: user.id, email, full_name: fullName, password }
+        ]);
 
-      if (insertError) {
-        Alert.alert('Error', insertError.message);
-      } else {
-        navigation.navigate('MainTabs', { screen: 'Home', params: { userId, fullName } });
-      }
+      dispatch(addNotification(user.id, 'Welcome to SauveSaveurs!', 'client'));
+
+      Alert.alert('Success', 'User registered successfully');
+      navigation.navigate('UserCompleteProfileScreen', { userId: user.id });
+    } catch (error) {
+      Alert.alert('Error', error.message);
     }
   };
 
   const handleSignIn = () => {
     navigation.navigate('UserSignInScreen'); 
+  };
+
+  const toggleShowPassword = () => {
+    setShowPassword(!showPassword);
+  };
+
+  const toggleShowConfirmPassword = () => {
+    setShowConfirmPassword(!showConfirmPassword);
   };
 
   return (
@@ -70,6 +97,7 @@ const UserSignUpScreen = () => {
               value={fullName}
               onChangeText={setFullName}
               autoCapitalize="words"
+              placeholderTextColor="rgba(0, 0, 0, 0.6)"
             />
             
             <Text style={styles.label}>Email</Text>
@@ -80,17 +108,40 @@ const UserSignUpScreen = () => {
               onChangeText={setEmail}
               keyboardType="email-address"
               autoCapitalize="none"
+              placeholderTextColor="rgba(0, 0, 0, 0.6)"
             />
             
             <Text style={styles.label}>Password</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="Enter your password"
-              value={password}
-              onChangeText={setPassword}
-              secureTextEntry
-              autoCapitalize="none"
-            />
+            <View style={styles.passwordContainer}>
+              <TextInput
+                style={styles.passwordInput}
+                placeholder="Enter your password"
+                value={password}
+                onChangeText={setPassword}
+                secureTextEntry={!showPassword}
+                autoCapitalize="none"
+                placeholderTextColor="rgba(0, 0, 0, 0.6)"
+              />
+              <TouchableOpacity onPress={toggleShowPassword} style={styles.eyeIcon}>
+                <Icon name={showPassword ? "eye" : "eye-off"} size={24} color="#6b6e56" />
+              </TouchableOpacity>
+            </View>
+
+            <Text style={styles.label}>Confirm Password</Text>
+            <View style={styles.passwordContainer}>
+              <TextInput
+                style={styles.passwordInput}
+                placeholder="Re-enter your password"
+                value={confirmPassword}
+                onChangeText={setConfirmPassword}
+                secureTextEntry={!showConfirmPassword}
+                autoCapitalize="none"
+                placeholderTextColor="rgba(0, 0, 0, 0.6)"
+              />
+              <TouchableOpacity onPress={toggleShowConfirmPassword} style={styles.eyeIcon}>
+                <Icon name={showConfirmPassword ? "eye" : "eye-off"} size={24} color="#6b6e56" />
+              </TouchableOpacity>
+            </View>
           </View>
 
           <View style={styles.footer}>
@@ -156,7 +207,26 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
     borderRadius: 5,
     marginBottom: 20,
-    height: 50, 
+    height: 50,
+    color: '#000'
+  },
+  passwordContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#000',
+    borderRadius: 5,
+    height: 50,
+    marginBottom: 20,
+  },
+  passwordInput: {
+    flex: 1,
+    paddingVertical: 8,
+    paddingHorizontal: 10,
+    color: '#000',
+  },
+  eyeIcon: {
+    marginRight: 10,
   },
   signUpButton: {
     backgroundColor: '#82866b',

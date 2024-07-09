@@ -4,7 +4,7 @@ import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { useDispatch, useSelector } from 'react-redux';
 import { useNavigation } from '@react-navigation/native';
 import { supabase } from '../database/supabaseClient';
-import { toggleFavorite } from '../utils/favoriteUtils'; // Import the utility function
+import { toggleFavorite } from '../utils/favoriteUtils';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const SearchScreen = () => {
@@ -44,7 +44,6 @@ const SearchScreen = () => {
 
     setLoading(true);
     try {
-      // First, fetch the shop details based on the search query
       const { data: shopsData, error: shopsError } = await supabase
         .from('shops')
         .select('*')
@@ -62,7 +61,6 @@ const SearchScreen = () => {
 
       const shopIds = shopsData.map(shop => shop.id);
 
-      // Fetch the surprise bags for the matched shops
       const { data: bagsData, error: bagsError } = await supabase
         .from('surprise_bags')
         .select('*')
@@ -105,7 +103,7 @@ const SearchScreen = () => {
     const isFavorite = favorites.some(favorite => favorite.id === item.id);
 
     return (
-      <TouchableOpacity onPress={() => navigation.navigate('StoreDetailsScreen', { store: item })}>
+      <TouchableOpacity onPress={() => navigation.navigate('StoreDetailsScreen', { store: { bag_id: item.id, shop_id: item.shop_id } })}>
         <View style={styles.card}>
           <Image
             source={{ uri: item.image_url || 'https://example.com/default-image.jpg' }}
@@ -113,7 +111,7 @@ const SearchScreen = () => {
           />
           <View style={styles.cardOverlay}>
             <View style={styles.cardQuantityContainer}>
-              <Text style={styles.cardQuantity}>{`${item.quantity || 0} left`}</Text>
+              <Text style={styles.cardQuantity}>{`${item.quantity_left || 0} left`}</Text>
             </View>
             <TouchableOpacity
               style={styles.heartIconContainer}
@@ -127,7 +125,7 @@ const SearchScreen = () => {
           </View>
           <View style={styles.cardContent}>
             <Text style={styles.cardTitle}>{item.name}</Text>
-            <Text style={styles.cardPrice}>{`$${item.price}`}</Text>
+            <Text style={styles.cardPrice}>{`${item.price} DZD`}</Text>
             <Text style={styles.cardTime}>{item.pickup_hour} (Pick up)</Text>
           </View>
         </View>
@@ -144,6 +142,7 @@ const SearchScreen = () => {
           <TextInput
             style={styles.searchInput}
             placeholder="Search store/restaurant/café"
+            placeholderTextColor="#000" // Change the placeholder text color to black
             value={searchQuery}
             onChangeText={setSearchQuery}
             onSubmitEditing={handleSearch}
@@ -179,8 +178,8 @@ const SearchScreen = () => {
           <FlatList
             data={searchResults}
             renderItem={renderSearchItem}
-            keyExtractor={item => item.id}
-            contentContainerStyle={{ paddingBottom: 60 }} // Adjust paddingBottom to ensure the last item is fully visible
+            keyExtractor={item => item.id.toString()}
+            contentContainerStyle={{ paddingBottom: 60 }}
           />
         )}
       </View>
@@ -237,7 +236,7 @@ const styles = StyleSheet.create({
   recentSearchItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#f0f0f0',
+    backgroundColor: 'rgba(0, 0, 0, 0.1)', // black and transparent
     borderRadius: 5,
     padding: 5,
     marginRight: 10,
@@ -245,6 +244,7 @@ const styles = StyleSheet.create({
   },
   recentSearchText: {
     marginRight: 5,
+    color: '#000',
   },
   resultsContainer: {
     padding: 20,

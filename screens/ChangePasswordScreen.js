@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { useNavigation } from '@react-navigation/native';
+import { supabase } from '../database/supabaseClient';
 
 const ChangePasswordScreen = () => {
   const navigation = useNavigation();
@@ -11,6 +12,37 @@ const ChangePasswordScreen = () => {
   const [showPassword, setShowPassword] = useState(false);
 
   const toggleShowPassword = () => setShowPassword(!showPassword);
+
+  const handleChangePassword = async () => {
+    if (newPassword !== confirmPassword) {
+      Alert.alert('Error', 'New passwords do not match.');
+      return;
+    }
+
+    try {
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+      if (sessionError) throw sessionError;
+
+      const { user } = session;
+      if (!user) throw new Error('No user logged in');
+
+      const { error: signInError } = await supabase.auth.signInWithPassword({
+        email: user.email,
+        password: currentPassword,
+      });
+      if (signInError) throw signInError;
+
+      const { error: updatePasswordError } = await supabase.auth.updateUser({
+        password: newPassword,
+      });
+      if (updatePasswordError) throw updatePasswordError;
+
+      Alert.alert('Success', 'Password updated successfully');
+      navigation.goBack();
+    } catch (error) {
+      Alert.alert('Error', error.message);
+    }
+  };
 
   return (
     <View style={styles.container}>
@@ -27,6 +59,7 @@ const ChangePasswordScreen = () => {
             onChangeText={setCurrentPassword}
             secureTextEntry={!showPassword}
             placeholder="Enter your current password"
+            placeholderTextColor="rgba(0, 0, 0, 0.5)"
           />
           <TouchableOpacity onPress={toggleShowPassword}>
             <Icon name={showPassword ? "eye" : "eye-off"} size={24} color="#6b6e56" />
@@ -40,6 +73,7 @@ const ChangePasswordScreen = () => {
             onChangeText={setNewPassword}
             secureTextEntry={!showPassword}
             placeholder="Enter your new password"
+            placeholderTextColor="rgba(0, 0, 0, 0.5)"
           />
           <TouchableOpacity onPress={toggleShowPassword}>
             <Icon name={showPassword ? "eye" : "eye-off"} size={24} color="#6b6e56" />
@@ -53,15 +87,13 @@ const ChangePasswordScreen = () => {
             onChangeText={setConfirmPassword}
             secureTextEntry={!showPassword}
             placeholder="Re-enter new password"
+            placeholderTextColor="rgba(0, 0, 0, 0.5)"
           />
           <TouchableOpacity onPress={toggleShowPassword}>
             <Icon name={showPassword ? "eye" : "eye-off"} size={24} color="#6b6e56" />
           </TouchableOpacity>
         </View>
-        <TouchableOpacity style={styles.forgotPasswordButton}>
-          <Text style={styles.forgotPasswordText}>Forgot Password</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.resetButton}>
+        <TouchableOpacity style={styles.resetButton} onPress={handleChangePassword}>
           <Text style={styles.resetButtonText}>Reset Password</Text>
         </TouchableOpacity>
       </View>
@@ -95,6 +127,7 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#6b6e56',
     marginBottom: 5,
+    fontWeight: 'bold',
   },
   inputContainer: {
     flexDirection: 'row',
@@ -109,14 +142,6 @@ const styles = StyleSheet.create({
   input: {
     flex: 1,
     fontSize: 16,
-  },
-  forgotPasswordButton: {
-    alignItems: 'flex-end',
-    marginBottom: 20,
-  },
-  forgotPasswordText: {
-    fontSize: 16,
-    color: '#6b6e56',
   },
   resetButton: {
     backgroundColor: '#6b6e56',

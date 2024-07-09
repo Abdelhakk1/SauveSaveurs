@@ -1,49 +1,39 @@
-// reducers/storeReducer.js
-
 import {
-  UPDATE_STORE_DETAILS,
-  RESERVE_BAG,
-  CANCEL_RESERVATION,
   ADD_TO_FAVORITES,
   REMOVE_FROM_FAVORITES,
-  MOVE_ORDER_TO_HISTORY,
+  UPDATE_USER_INFO,
+  CANCEL_RESERVATION,
+  CONFIRM_PICKUP_RESERVATION,
+  FETCH_CURRENT_ORDERS,
+  FETCH_HISTORY_ORDERS,
   CLEAR_ORDER_HISTORY,
+  ADD_TO_CURRENT_ORDERS,
+  UPDATE_QUANTITY_LEFT,
+  FETCH_SURPRISE_BAGS,
+  FETCH_USER_INFO,
+  ADD_NOTIFICATION,
+  FETCH_NOTIFICATIONS,
+  CLEAR_NOTIFICATIONS,
+  SET_NEARBY_SHOPS,
+  FETCH_SHOP_DETAILS,
+  CLEAR_SHOP_DETAILS,
 } from '../Actions/storeActions';
 
 const initialState = {
-  currentStore: {},
+  favorites: [],
+  userInfo: {},
   currentOrders: [],
   historyOrders: [],
-  favorites: [],
-  currentReservation: null,
+  surpriseBags: [],
+  clientNotifications: [],
+  employeeNotifications: [],
+  nearbyShops: [],
+  shopDetails: null,
 };
 
 const storeReducer = (state = initialState, action) => {
   switch (action.type) {
-    case UPDATE_STORE_DETAILS:
-      return {
-        ...state,
-        currentStore: action.payload,
-      };
-    case RESERVE_BAG:
-      return {
-        ...state,
-        currentOrders: [...state.currentOrders, action.payload],
-        currentReservation: action.payload,
-      };
-    case CANCEL_RESERVATION: {
-      const order = state.currentOrders.find(order => order.id === action.payload);
-      return {
-        ...state,
-        currentOrders: state.currentOrders.filter(order => order.id !== action.payload),
-        historyOrders: [...state.historyOrders, { ...order, status: 'Canceled' }],
-        currentReservation: null,
-      };
-    }
     case ADD_TO_FAVORITES:
-      if (state.favorites.some(favorite => favorite.id === action.payload.id)) {
-        return state;
-      }
       return {
         ...state,
         favorites: [...state.favorites, action.payload],
@@ -51,20 +41,126 @@ const storeReducer = (state = initialState, action) => {
     case REMOVE_FROM_FAVORITES:
       return {
         ...state,
-        favorites: state.favorites.filter(favorite => favorite.id !== action.payload),
+        favorites: state.favorites.filter((item) => item.id !== action.payload),
       };
-    case MOVE_ORDER_TO_HISTORY: {
-      const order = state.currentOrders.find(order => order.id === action.payload);
+    case UPDATE_USER_INFO:
       return {
         ...state,
-        currentOrders: state.currentOrders.filter(order => order.id !== action.payload),
-        historyOrders: [...state.historyOrders, order],
+        userInfo: { ...state.userInfo, ...action.payload },
+      };
+    case FETCH_USER_INFO:
+      return {
+        ...state,
+        userInfo: action.payload,
+      };
+    case FETCH_SHOP_DETAILS:
+      return {
+        ...state,
+        shopDetails: action.payload,
+      };
+    case CLEAR_SHOP_DETAILS:
+      return {
+        ...state,
+        shopDetails: null,
+      };
+    case FETCH_CURRENT_ORDERS:
+      return {
+        ...state,
+        currentOrders: action.payload,
+      };
+    case FETCH_HISTORY_ORDERS:
+      return {
+        ...state,
+        historyOrders: action.payload,
+      };
+    case ADD_TO_CURRENT_ORDERS:
+      return {
+        ...state,
+        currentOrders: [...state.currentOrders, action.payload],
+      };
+    case CANCEL_RESERVATION: {
+      const updatedCurrentOrders = state.currentOrders.filter(
+        (order) => order.id !== action.payload.reservationId
+      );
+      const cancelledOrder = state.currentOrders.find((order) => order.id === action.payload.reservationId);
+      if (cancelledOrder) {
+        const updatedCancelledOrder = { ...cancelledOrder, status: action.payload.status };
+        return {
+          ...state,
+          currentOrders: updatedCurrentOrders,
+          historyOrders: [...state.historyOrders, updatedCancelledOrder],
+        };
+      }
+      return {
+        ...state,
+        currentOrders: updatedCurrentOrders,
+      };
+    }
+    case CONFIRM_PICKUP_RESERVATION: {
+      const updatedCurrentOrders = state.currentOrders.filter(
+        (order) => order.id !== action.payload.reservationId
+      );
+      const pickedUpOrder = state.currentOrders.find((order) => order.id === action.payload.reservationId);
+      if (pickedUpOrder) {
+        const updatedPickedUpOrder = { ...pickedUpOrder, status: action.payload.status };
+        return {
+          ...state,
+          currentOrders: updatedCurrentOrders,
+          historyOrders: [...state.historyOrders, updatedPickedUpOrder],
+        };
+      }
+      return {
+        ...state,
+        currentOrders: updatedCurrentOrders,
       };
     }
     case CLEAR_ORDER_HISTORY:
       return {
         ...state,
         historyOrders: [],
+      };
+    case UPDATE_QUANTITY_LEFT: {
+      const updatedSurpriseBags = state.surpriseBags.map(bag => {
+        if (bag.id === action.payload.bagId) {
+          return { ...bag, quantity_left: action.payload.newQuantity };
+        }
+        return bag;
+      });
+      return {
+        ...state,
+        surpriseBags: updatedSurpriseBags,
+      };
+    }
+    case FETCH_SURPRISE_BAGS:
+      return {
+        ...state,
+        surpriseBags: action.payload,
+      };
+    case ADD_NOTIFICATION: {
+      const notificationsKey = action.payload.user_type === 'client' ? 'clientNotifications' : 'employeeNotifications';
+      return {
+        ...state,
+        [notificationsKey]: [action.payload, ...state[notificationsKey]],
+      };
+    }
+    case FETCH_NOTIFICATIONS: {
+      const notificationsKey = action.payload.userType === 'client' ? 'clientNotifications' : 'employeeNotifications';
+      return {
+        ...state,
+        [notificationsKey]: action.payload.data,
+      };
+    }
+    case CLEAR_NOTIFICATIONS: {
+      const notificationsKey = action.payload.userType === 'client' ? 'clientNotifications' : 'employeeNotifications';
+      return {
+        ...state,
+        [notificationsKey]: [],
+      };
+    }
+    case SET_NEARBY_SHOPS:
+      return {
+        ...state,
+        nearbyShops: action.payload,
       };
     default:
       return state;

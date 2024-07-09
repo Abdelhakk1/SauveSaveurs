@@ -10,24 +10,29 @@ import {
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { useDispatch, useSelector } from 'react-redux';
 import { removeFromFavorites } from '../Actions/storeActions';
+import { useNavigation } from '@react-navigation/native';
 
 const FavoritesScreen = () => {
   const dispatch = useDispatch();
   const favorites = useSelector(state => state.store.favorites);
+  const navigation = useNavigation();
 
   const handleRemoveFromFavorites = (storeId) => {
     dispatch(removeFromFavorites(storeId));
   };
 
   const renderFavoriteItem = ({ item }) => (
-    <TouchableOpacity style={styles.favoriteCard}>
+    <TouchableOpacity 
+      style={styles.favoriteCard}
+      onPress={() => navigation.navigate('StoreDetailsScreen', { store: { bag_id: item.id, shop_id: item.shop_id } })}
+    >
       <Image
         source={{ uri: item.image_url || 'https://example.com/default-image.jpg' }}
         style={styles.cardImage}
       />
       <View style={styles.cardOverlay}>
         <View style={styles.cardQuantityContainer}>
-          <Text style={styles.cardQuantity}>{`${item.quantity} left`}</Text>
+          <Text style={styles.cardQuantity}>{`${item.quantity_left} left`}</Text>
         </View>
         <TouchableOpacity
           style={styles.heartIconContainer}
@@ -38,7 +43,7 @@ const FavoritesScreen = () => {
       </View>
       <View style={styles.cardContent}>
         <Text style={styles.cardTitle}>{item.name}</Text>
-        <Text style={styles.cardPrice}>${item.price}</Text>
+        <Text style={styles.cardPrice}>{`${item.price} DZD`}</Text>
         <Text style={styles.cardTime}>{item.pickup_hour} (Pick up)</Text>
       </View>
     </TouchableOpacity>
@@ -50,7 +55,7 @@ const FavoritesScreen = () => {
       <FlatList
         data={favorites}
         renderItem={renderFavoriteItem}
-        keyExtractor={item => item.id}
+        keyExtractor={item => item.id.toString()}
       />
     </View>
   );

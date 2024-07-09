@@ -1,48 +1,52 @@
-import React, { useState, useEffect } from 'react';
-import { View, Text, Image, TouchableOpacity, StyleSheet, FlatList, Modal, Alert } from 'react-native';
+import React, { useEffect, useState } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, Image, FlatList, Modal, Alert } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { useNavigation } from '@react-navigation/native';
+import { useDispatch, useSelector } from 'react-redux';
 import { supabase } from '../database/supabaseClient';
+import { fetchUserInfo } from '../Actions/storeActions';
 
 const ProfileScreen = () => {
   const navigation = useNavigation();
+  const dispatch = useDispatch();
   const [logoutModalVisible, setLogoutModalVisible] = useState(false);
-  const [userData, setUserData] = useState({ name: 'User', profilePicture: require('../assets/images/Ai 2.png') });
-  const [loading, setLoading] = useState(true);
+  const userInfo = useSelector(state => state.store.userInfo);
 
   useEffect(() => {
     const fetchUserData = async () => {
       try {
-        const { data: { session }, error } = await supabase.auth.getSession();
-        if (error || !session) {
-          throw new Error('User not authenticated');
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session) {
+          Alert.alert('Error', 'User not logged in.');
+          return;
         }
-
-        const userId = session.user.id;
-        const { data, error: userError } = await supabase
-          .from('clients')
-          .select('full_name')
-          .eq('id', userId)
-          .single();
-
-        if (userError) {
-          throw userError;
+        const user = session.user;
+        if (!user) {
+          Alert.alert('Error', 'User not logged in.');
+          return;
         }
-
-        setUserData({
-          name: data.full_name,
-          profilePicture: require('../assets/images/Ai 2.png'), // Default profile picture
-        });
+        dispatch(fetchUserInfo(user.id, 'client'));
       } catch (error) {
         console.error('Error fetching user data:', error);
         Alert.alert('Error', 'Failed to fetch user data.');
-      } finally {
-        setLoading(false);
       }
     };
 
     fetchUserData();
-  }, []);
+  }, [dispatch]);
+
+  const handleLogout = async () => {
+    setLogoutModalVisible(false);
+    try {
+      const { error } = await supabase.auth.signOut();
+      if (error) {
+        throw error;
+      }
+      navigation.reset({ index: 0, routes: [{ name: 'UserSignInScreen' }] });
+    } catch (error) {
+      Alert.alert('Error', 'Failed to log out.');
+    }
+  };
 
   const menuItems = [
     { id: '1', title: 'Personal Information', iconName: 'account-circle-outline', screen: 'MyPersonalInformation' },
@@ -60,12 +64,6 @@ const ProfileScreen = () => {
     }
   };
 
-  const handleLogout = () => {
-    setLogoutModalVisible(false);
-    // Add your logout logic here, such as clearing user data, tokens, etc.
-    navigation.replace('OnboardingScreen');
-  };
-
   const renderItem = ({ item }) => (
     <TouchableOpacity style={styles.menuItem} onPress={() => handleMenuItemPress(item)}>
       <Icon name={item.iconName} size={24} color="#676a61" style={styles.icon} />
@@ -73,19 +71,26 @@ const ProfileScreen = () => {
     </TouchableOpacity>
   );
 
-  if (loading) {
-    return (
-      <View style={styles.loadingContainer}>
-        <Text style={styles.loadingText}>Loading...</Text>
-      </View>
-    );
-  }
-
   return (
     <View style={styles.container}>
-      <Text style={styles.profileTitle}>Profile</Text>
-      <Image source={userData.profilePicture} style={styles.profileImage} />
-      <Text style={styles.userName}>{userData.name}</Text>
+      <Text style={styles.title}>Profile</Text>
+      <View style={styles.profileContainer}>
+        {userInfo.profile_pic_url ? (
+          <Image
+            source={{ uri: userInfo.profile_pic_url }}
+            style={styles.profileImage}
+          />
+        ) : (
+          <Icon name="account-circle" size={100} color="#6b6e56" />
+        )}
+        <View style={styles.profileInfo}>
+          <Text style={styles.profileName}>{userInfo.full_name}</Text>
+        </View>
+        <TouchableOpacity style={styles.editIcon} onPress={() => handleMenuItemPress({ screen: 'MyPersonalInformation' })}>
+          <Icon name="pencil" size={24} color="#6b6e56" />
+        </TouchableOpacity>
+      </View>
+      
       <View style={styles.menuBox}>
         <FlatList
           data={menuItems}
@@ -102,7 +107,7 @@ const ProfileScreen = () => {
       >
         <View style={styles.modalContainer}>
           <View style={styles.modalContent}>
-            <Text style={styles.modalText}>Do you want to logout your account?</Text>
+            <Text style={styles.modalText}>Do you want to log out?</Text>
             <View style={styles.modalButtons}>
               <TouchableOpacity style={styles.modalButton} onPress={() => setLogoutModalVisible(false)}>
                 <Text style={styles.modalButtonText}>No</Text>
@@ -122,41 +127,52 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#FFFFFF',
-    alignItems: 'center',
-    paddingTop: 30,
+    paddingHorizontal: 20,
   },
-  profileTitle: {
-    fontSize: 22,
+  title: {
+    fontSize: 24,
     fontWeight: 'bold',
-    marginBottom: 10,
-    top: 15,
+    textAlign: 'center',
+    marginTop: 60,
+    marginBottom: 20,
+  },
+  profileContainer: {
+    alignItems: 'center',
+    marginBottom: 20,
   },
   profileImage: {
-    width: 100,
-    height: 100,
-    borderRadius: 50,
-    marginTop: 20,
+    width: 80,
+    height: 80,
+    borderRadius: 40,
   },
-  userName: {
-    fontSize: 22,
+  profileInfo: {
+    alignItems: 'center',
+    marginTop: 10,
+  },
+  profileName: {
+    fontSize: 18,
     fontWeight: 'bold',
-    marginTop: 15,
-    marginBottom: 20,
+    color: '#5c5f4c',
+  },
+  editIcon: {
+    position: 'absolute',
+    bottom: 30,
+    right: 100,
+    backgroundColor: '#f0f0f0',
+    borderRadius: 20,
+    padding: 5,
   },
   menuBox: {
-    width: '90%',
-    backgroundColor: '#fff',
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: '#ccc',
-    paddingVertical: 10,
-    paddingHorizontal: 15,
-    marginBottom: 20,
+    width: '100%',
+    marginTop: 20,
   },
   menuItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 15,
+    backgroundColor: '#f0f0e8',
+    borderRadius: 10,
+    padding: 15,
+    marginBottom: 10,
   },
   icon: {
     marginRight: 15,
@@ -199,24 +215,6 @@ const styles = StyleSheet.create({
   modalButtonText: {
     color: '#FFFFFF',
     fontSize: 16,
-  },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  loadingText: {
-    fontSize: 18,
-    color: '#82866b',
-  },
-  errorContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  errorText: {
-    fontSize: 18,
-    color: 'red',
   },
 });
 

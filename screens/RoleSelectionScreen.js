@@ -10,7 +10,7 @@ import {
 import { useNavigation } from '@react-navigation/native';
 
 const themeColors = {
-  background: '#f3f3f0',
+  background: '#ffffff',
   titleText: '#5c5f4c',
   buttonText: '#ffffff',
   buttonBackground: '#82866b',

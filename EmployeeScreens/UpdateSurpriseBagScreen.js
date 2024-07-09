@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -27,33 +27,45 @@ const defaultImageUrls = [
   { id: 6, uri: 'https://rboyqdyoehiiajuvcyft.supabase.co/storage/v1/object/public/surprise_bags/DALL_E_2024-05-26_12.28.02_-_A_variety_of_dairy_products_like_cheese__yogurt__and_milk.webp', label: 'Dairy' },
 ];
 
-const UploadSurpriseBagScreen = () => {
+const UpdateSurpriseBagScreen = () => {
   const navigation = useNavigation();
   const route = useRoute();
-  const { userId } = route.params || {};
+  const { surpriseBag } = route.params || {};
 
-  const [name, setName] = useState('');
-  const [bagNumber, setBagNumber] = useState('');
+  const [name, setName] = useState(surpriseBag.name || '');
+  const [bagNumber, setBagNumber] = useState(surpriseBag.bag_number || '');
   const [pickupHourFrom, setPickupHourFrom] = useState(new Date());
   const [pickupHourTo, setPickupHourTo] = useState(new Date());
-  const [validationFrom, setValidationFrom] = useState(new Date());
-  const [validationTo, setValidationTo] = useState(new Date());
-  const [price, setPrice] = useState('');
-  const [quantityLeft, setQuantityLeft] = useState('');
-  const [description, setDescription] = useState('');
-  const [category, setCategory] = useState('Breakfast');
-  const [selectedImage, setSelectedImage] = useState('');
+  const [validationFrom, setValidationFrom] = useState(new Date(surpriseBag.validation.split(' - ')[0]));
+  const [validationTo, setValidationTo] = useState(new Date(surpriseBag.validation.split(' - ')[1]));
+  const [price, setPrice] = useState(surpriseBag.price ? surpriseBag.price.toString() : '');
+  const [quantityLeft, setQuantityLeft] = useState(surpriseBag.quantity_left ? surpriseBag.quantity_left.toString() : '');
+  const [description, setDescription] = useState(surpriseBag.description || '');
+  const [category, setCategory] = useState(surpriseBag.category || 'Breakfast');
+  const [selectedImage, setSelectedImage] = useState(surpriseBag.image_url || '');
   const [pickerVisible, setPickerVisible] = useState(false);
   const [showTimePickerFrom, setShowTimePickerFrom] = useState(false);
   const [showTimePickerTo, setShowTimePickerTo] = useState(false);
   const [showDatePickerFrom, setShowDatePickerFrom] = useState(false);
   const [showDatePickerTo, setShowDatePickerTo] = useState(false);
 
+  useEffect(() => {
+    const [pickupStart, pickupEnd] = surpriseBag.pickup_hour.split(' - ');
+    const pickupStartTime = new Date();
+    const pickupEndTime = new Date();
+    const [pickupStartHour, pickupStartMinute] = pickupStart.split(':');
+    const [pickupEndHour, pickupEndMinute] = pickupEnd.split(':');
+    pickupStartTime.setHours(pickupStartHour, pickupStartMinute);
+    pickupEndTime.setHours(pickupEndHour, pickupEndMinute);
+    setPickupHourFrom(pickupStartTime);
+    setPickupHourTo(pickupEndTime);
+  }, [surpriseBag]);
+
   const handleSelectImage = (uri) => {
     setSelectedImage(uri);
   };
 
-  const handleUploadBag = async () => {
+  const handleUpdateBag = async () => {
     if (!name || !bagNumber || !pickupHourFrom || !pickupHourTo || !validationFrom || !validationTo || !price || !quantityLeft || !description || !selectedImage) {
       Alert.alert('Error', 'Please fill out all fields and select an image');
       return;
@@ -71,44 +83,48 @@ const UploadSurpriseBagScreen = () => {
     const validationToString = validationTo.toISOString().split('T')[0];
 
     try {
-      const { data: shop, error: shopError } = await supabase
-        .from('shops')
-        .select('id')
-        .eq('employee_id', userId)
-        .single();
-
-      if (shopError) {
-        console.error('Error fetching shop:', shopError);
-        Alert.alert('Error fetching shop information', shopError.message);
-        return;
-      }
-
-      const { data, error } = await supabase
+      const { error } = await supabase
         .from('surprise_bags')
-        .insert([
-          {
-            employee_id: userId,
-            shop_id: shop.id,
-            name,
-            bag_number: bagNumber,
-            pickup_hour: `${pickupHourFromString} - ${pickupHourToString}`,
-            validation: `${validationFromString} - ${validationToString}`,
-            price: parseFloat(price), // Ensure price is a numeric value
-            quantity_left: parseInt(quantityLeft), // Ensure quantity left is a numeric value
-            description,
-            category,
-            image_url: selectedImage,
-            pickup_start_time: pickupHourFromString,
-            pickup_end_time: pickupHourToString,
-          },
-        ]);
+        .update({
+          name,
+          bag_number: bagNumber,
+          pickup_hour: `${pickupHourFromString} - ${pickupHourToString}`,
+          validation: `${validationFromString} - ${validationToString}`,
+          price: parseFloat(price),
+          quantity_left: parseInt(quantityLeft),
+          description,
+          category,
+          image_url: selectedImage,
+          pickup_start_time: pickupHourFromString,
+          pickup_end_time: pickupHourToString,
+        })
+        .eq('id', surpriseBag.id);
 
       if (error) {
-        console.error('Error uploading surprise bag:', error);
-        Alert.alert('Error uploading surprise bag', error.message);
+        console.error('Error updating surprise bag:', error);
+        Alert.alert('Error updating surprise bag', error.message);
       } else {
-        console.log('Inserted data:', data);
-        Alert.alert('Success', 'Surprise bag uploaded successfully');
+        Alert.alert('Success', 'Surprise bag updated successfully');
+        navigation.goBack();
+      }
+    } catch (error) {
+      console.error('Network request failed:', error);
+      Alert.alert('Network request failed', error.message);
+    }
+  };
+
+  const handleDeleteBag = async () => {
+    try {
+      const { error } = await supabase
+        .from('surprise_bags')
+        .delete()
+        .eq('id', surpriseBag.id);
+
+      if (error) {
+        console.error('Error deleting surprise bag:', error);
+        Alert.alert('Error deleting surprise bag', error.message);
+      } else {
+        Alert.alert('Success', 'Surprise bag deleted successfully');
         navigation.goBack();
       }
     } catch (error) {
@@ -133,7 +149,7 @@ const UploadSurpriseBagScreen = () => {
         <Icon name="arrow-left" size={24} color="#000" />
       </TouchableOpacity>
       <ScrollView contentContainerStyle={styles.scrollContainer}>
-        <Text style={styles.headerTitle}>Upload Surprise Bags</Text>
+        <Text style={styles.headerTitle}>Update Surprise Bag</Text>
         <Text style={styles.label}>Select an Image</Text>
         <FlatList
           data={defaultImageUrls}
@@ -306,8 +322,12 @@ const UploadSurpriseBagScreen = () => {
           </View>
         </Modal>
 
-        <TouchableOpacity style={styles.submitButton} onPress={handleUploadBag}>
-          <Text style={styles.submitButtonText}>Submit Bag</Text>
+        <TouchableOpacity style={styles.submitButton} onPress={handleUpdateBag}>
+          <Text style={styles.submitButtonText}>Update Bag</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity style={[styles.submitButton, styles.deleteButton]} onPress={handleDeleteBag}>
+          <Text style={styles.submitButtonText}>Delete Bag</Text>
         </TouchableOpacity>
       </ScrollView>
     </SafeAreaView>
@@ -417,6 +437,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 20,
   },
+  deleteButton: {
+    backgroundColor: 'red',
+  },
   submitButtonText: {
     color: '#fff',
     fontSize: 18,
@@ -424,4 +447,4 @@ const styles = StyleSheet.create({
   },
 });
 
-export default UploadSurpriseBagScreen;
+export default UpdateSurpriseBagScreen;

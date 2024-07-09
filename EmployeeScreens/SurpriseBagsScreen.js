@@ -27,7 +27,11 @@ const SurpriseBagsScreen = () => {
     if (error) {
       console.error('Error fetching surprise bags:', error);
     } else {
-      setSurpriseBags(data);
+      const updatedBags = data.map((bag) => ({
+        ...bag,
+        status: bag.quantity_left === 0 ? 'Reserved' : 'Available',
+      }));
+      setSurpriseBags(updatedBags);
     }
   };
 
@@ -45,16 +49,22 @@ const SurpriseBagsScreen = () => {
     }, [userId])
   );
 
+  const navigateToUpdateSurpriseBag = (item) => {
+    navigation.navigate('UpdateSurpriseBagScreen', { surpriseBag: item });
+  };
+
   const renderItem = ({ item }) => (
-    <View style={styles.bagCard}>
-      <Image source={{ uri: item.image_url }} style={styles.bagImage} />
-      <View style={styles.bagInfo}>
-        <Text style={styles.bagName}>Surprise Bag</Text>
-        <Text style={styles.bagNumber}>Bag no: #{item.bag_number}</Text>
-        <Text style={styles.bagDate}>Date: {item.pickup_hour}</Text>
-        <Text style={styles.bagStatus}>{item.status}</Text>
+    <TouchableOpacity onPress={() => navigateToUpdateSurpriseBag(item)}>
+      <View style={styles.bagCard}>
+        <Image source={{ uri: item.image_url }} style={styles.bagImage} />
+        <View style={styles.bagInfo}>
+          <Text style={styles.bagName}>Surprise Bag</Text>
+          <Text style={styles.bagNumber}>Bag no: #{item.bag_number}</Text>
+          <Text style={styles.bagDate}>Date: {item.pickup_hour}</Text>
+          <Text style={[styles.bagStatus, item.status === 'Reserved' ? styles.reserved : styles.available]}>{item.status}</Text>
+        </View>
       </View>
-    </View>
+    </TouchableOpacity>
   );
 
   return (
@@ -167,8 +177,13 @@ const styles = StyleSheet.create({
   },
   bagStatus: {
     fontSize: 14,
-    color: '#6b6e56',
     marginTop: 5,
+  },
+  reserved: {
+    color: 'red',
+  },
+  available: {
+    color: 'green',
   },
 });
 

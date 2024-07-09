@@ -1,11 +1,14 @@
 import React, { useEffect, useState, useCallback } from 'react';
-import { View, Text, StyleSheet, Image, TouchableOpacity, Alert, FlatList } from 'react-native';
+import { View, Text, StyleSheet, Image, TouchableOpacity, Alert, FlatList, RefreshControl, SafeAreaView } from 'react-native';
+import PropTypes from 'prop-types';
 import { useNavigation, useRoute, useFocusEffect } from '@react-navigation/native';
+import { useDispatch, useSelector } from 'react-redux';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { supabase } from '../database/supabaseClient';
+import { fetchUserInfo, fetchShopDetails } from '../Actions/storeActions';
 
 const themeColors = {
-  background: '#f3f3f0',
+  background: '#FFFFFF',
   titleText: '#5c5f4c',
   buttonText: '#ffffff',
   buttonBackground: '#82866b',
@@ -16,158 +19,139 @@ const EmployeeHomeScreen = () => {
   const navigation = useNavigation();
   const route = useRoute();
   const { userId, uploadSuccess } = route.params || { userId: null, uploadSuccess: false };
-  const [name, setName] = useState('Employee');
-  const [shopDetails, setShopDetails] = useState(null);
+  const dispatch = useDispatch();
+  const userInfo = useSelector(state => state.store.userInfo);
+  const shopDetails = useSelector(state => state.store.shopDetails);
   const [surpriseBags, setSurpriseBags] = useState([]);
   const [surpriseBagsCount, setSurpriseBagsCount] = useState(0);
+  const [refreshing, setRefreshing] = useState(false);
+  const [shopAddress, setShopAddress] = useState(''); // State to hold the shop address
 
   useEffect(() => {
-    const fetchEmployeeData = async () => {
-      const { data: userProfile, error } = await supabase
-        .from('employees')
-        .select('full_name')
-        .eq('id', userId)
-        .single();
-
-      if (error) {
-        console.error('Error fetching employee data:', error);
-      }
-
-      if (userProfile) {
-        setName(userProfile.full_name);
-      } else {
-        Alert.alert('Error', 'Failed to fetch employee data.');
-      }
-    };
-
-    const fetchShopDetails = async () => {
-      const { data: shop, error } = await supabase
-        .from('shops')
-        .select('id, shop_name, shop_address')
-        .eq('employee_id', userId)
-        .single();
-
-      if (error && error.code !== 'PGRST116') {
-        console.error('Error fetching shop details:', error);
-      }
-
-      if (shop) {
-        setShopDetails(shop);
-        fetchSurpriseBags(shop.id);
-      } else {
-        setShopDetails(null);
-      }
-    };
-
-    const fetchSurpriseBags = async (shopId) => {
-      const { data: bags, error } = await supabase
-        .from('surprise_bags')
-        .select('*')
-        .eq('shop_id', shopId);
-
-      if (error) {
-        console.error('Error fetching surprise bags:', error);
-      } else {
-        setSurpriseBags(bags);
-        setSurpriseBagsCount(bags.length);
-      }
-    };
-
     if (userId) {
-      fetchEmployeeData();
-      fetchShopDetails();
+      dispatch(fetchUserInfo(userId, 'employee'));
+      dispatch(fetchShopDetails(userId));
     }
+  }, [userId]);
 
+  useEffect(() => {
     if (uploadSuccess) {
       Alert.alert('Success', 'Shop information uploaded successfully.');
+      dispatch(fetchShopDetails(userId));
     }
-  }, [userId, uploadSuccess]);
+  }, [uploadSuccess]);
 
   useFocusEffect(
     useCallback(() => {
       if (shopDetails) {
-        const fetchSurpriseBags = async (shopId) => {
-          const { data: bags, error } = await supabase
-            .from('surprise_bags')
-            .select('*')
-            .eq('shop_id', shopId);
-
-          if (error) {
-            console.error('Error fetching surprise bags:', error);
-          } else {
-            setSurpriseBags(bags);
-            setSurpriseBagsCount(bags.length);
-          }
-        };
-
         fetchSurpriseBags(shopDetails.id);
+        setShopAddress(shopDetails.shop_address); // Set the shop address state
       }
     }, [shopDetails])
   );
+
+  const fetchSurpriseBags = async (shopId) => {
+    const { data: bags, error } = await supabase
+      .from('surprise_bags')
+      .select('*')
+      .eq('shop_id', shopId);
+
+    if (error) {
+      console.error('Error fetching surprise bags:', error);
+    } else {
+      const updatedBags = bags.map((bag) => ({
+        ...bag,
+        status: bag.quantity_left === 0 ? 'Reserved' : 'Available',
+      }));
+      setSurpriseBags(updatedBags);
+      setSurpriseBagsCount(updatedBags.length);
+    }
+  };
+
+  const onRefresh = useCallback(() => {
+    setRefreshing(true);
+    dispatch(fetchUserInfo(userId, 'employee'));
+    dispatch(fetchShopDetails(userId)).then(() => setRefreshing(false));
+  }, [userId]);
 
   const handleRegister = () => {
     navigation.navigate('ShopInformationScreen', { userId });
   };
 
+  const navigateToSurpriseBags = () => {
+    navigation.navigate('SurpriseBagsScreen', { userId });
+  };
+
+  const navigateToUpdateSurpriseBag = (item) => {
+    navigation.navigate('UpdateSurpriseBagScreen', { surpriseBag: item });
+  };
+
+  const navigateToChangeLocation = () => {
+    if (shopDetails) {
+      navigation.navigate('EmployeeChangeLocationScreen', { shopId: shopDetails.id });
+    } else {
+      Alert.alert('Error', 'Shop details not found.');
+    }
+  };
+
   const renderItem = ({ item }) => (
-    <View style={styles.bagCard}>
-      <Image source={{ uri: item.image_url }} style={styles.bagImage} />
-      <View style={styles.bagInfo}>
-        <Text style={styles.bagName}>Surprise Bag</Text>
-        <Text style={styles.bagNumber}>Bag no: #{item.bag_number}</Text>
-        <Text style={styles.bagDate}>Date: {item.pickup_hour}</Text>
-        <Text style={[styles.bagStatus, item.status === 'Reserved' ? styles.reserved : styles.available]}>{item.status}</Text>
+    <TouchableOpacity onPress={() => navigateToUpdateSurpriseBag(item)}>
+      <View style={styles.bagCard}>
+        <Image source={{ uri: item.image_url }} style={styles.bagImage} />
+        <View style={styles.bagInfo}>
+          <Text style={styles.bagName}>Surprise Bag</Text>
+          <Text style={styles.bagNumber}>Bag no: #{item.bag_number}</Text>
+          <Text style={styles.bagDate}>Date: {item.pickup_hour}</Text>
+          <Text style={[styles.bagStatus, item.status === 'Reserved' ? styles.reserved : styles.available]}>{item.status}</Text>
+        </View>
       </View>
-    </View>
+    </TouchableOpacity>
   );
 
-  return (
-    <View style={styles.container}>
+  const renderHeader = () => (
+    <>
       <View style={styles.header}>
         <View style={styles.locationContainer}>
-          <Image source={require('../assets/images/Ai 1.png')} style={styles.profileImage} />
+          {userInfo.profile_pic_url ? (
+            <Image source={{ uri: userInfo.profile_pic_url }} style={styles.profileImage} />
+          ) : null}
           <View>
-            <Text style={styles.headerTitle}>Hello {name}</Text>
-            <TouchableOpacity style={styles.locationInfo} onPress={() => navigation.navigate('ChangeLocationScreen')}>
+            <Text style={styles.headerTitle}>Hello {userInfo.full_name}</Text>
+            <TouchableOpacity style={styles.locationInfo} onPress={navigateToChangeLocation}>
               <Icon name="map-marker-outline" size={20} color="#6b6e56" />
-              <Text style={styles.address}>Alger, Algeria</Text>
+              <Text style={styles.address}>{shopAddress || 'Change Shop Location'}</Text>
               <Icon name="chevron-right" size={24} color="#6b6e56" />
             </TouchableOpacity>
-            <Text style={styles.distance}>Within 2 km</Text>
           </View>
         </View>
-        <Icon name="bell-outline" size={30} color="#6b6e56" />
+        <TouchableOpacity onPress={() => navigation.navigate('EmployeeNotificationScreen')}>
+          <Icon name="bell-outline" size={30} color="#6b6e56" />
+        </TouchableOpacity>
       </View>
-
       {shopDetails ? (
         <>
-          <TouchableOpacity style={styles.shopContainer} onPress={() => navigation.navigate('SurpriseBagsScreen', { userId })}>
-            <Text style={styles.shopTitle}>My Shop</Text>
-            <View style={styles.shopCard}>
-              <Image source={require('../assets/images/DALL·E 2024-04-26 00.04.20 - Create an image of a cozy coffee shop interior with wooden tables and chairs, warm ambient lighting, and some green plants in the corner. It should be.webp')} style={styles.shopImage} />
-              <View style={styles.shopInfo}>
-                <Text style={styles.shopName}>{shopDetails.shop_name}</Text>
-                <Text style={styles.shopAddress}>{shopDetails.shop_address}</Text>
-                <Text style={styles.surpriseBagText}>Surprise Bags: {surpriseBagsCount}</Text>
-              </View>
+          {shopDetails.status === 'pending' && (
+            <View style={styles.registrationContainer}>
+              <Text style={styles.registrationTitle}>You have completed registration.</Text>
+              <Text style={styles.registrationSubtitle}>Please wait for admin’s approval.</Text>
             </View>
-          </TouchableOpacity>
-
-          <View style={styles.surpriseBagsContainer}>
-            <Text style={styles.surpriseBagsTitle}>Surprise Bags</Text>
-            {surpriseBags.length > 0 ? (
-              <FlatList
-                data={surpriseBags}
-                renderItem={renderItem}
-                keyExtractor={(item) => item.id.toString()}
-                contentContainerStyle={styles.bagList}
-              />
-            ) : (
-              <View style={styles.shopBag}>
-                <Text style={styles.bagText}>You have no surprise bags</Text>
-              </View>
-            )}
-          </View>
+          )}
+          {shopDetails.status === 'approved' && (
+            <>
+              <TouchableOpacity style={styles.shopContainer} onPress={navigateToSurpriseBags}>
+                <Text style={styles.shopTitle}>My Shop</Text>
+                <View style={styles.shopCard}>
+                  <Image source={{ uri: shopDetails.shop_image_url }} style={styles.shopImage} />
+                  <View style={styles.shopInfo}>
+                    <Text style={styles.shopName}>{shopDetails.shop_name}</Text>
+                    <Text style={styles.shopAddress}>{shopDetails.shop_address}</Text>
+                    <Text style={styles.surpriseBagText}>Surprise Bags: {surpriseBagsCount}</Text>
+                  </View>
+                </View>
+              </TouchableOpacity>
+              <Text style={styles.surpriseBagsTitle}>Surprise Bags</Text>
+            </>
+          )}
         </>
       ) : (
         <View style={styles.registrationContainer}>
@@ -178,8 +162,31 @@ const EmployeeHomeScreen = () => {
           </TouchableOpacity>
         </View>
       )}
-    </View>
+    </>
   );
+
+  return (
+    <SafeAreaView style={styles.container}>
+      <FlatList
+        data={surpriseBags}
+        renderItem={renderItem}
+        keyExtractor={(item) => item.id.toString()}
+        ListHeaderComponent={renderHeader}
+        contentContainerStyle={styles.scrollView}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
+        ListEmptyComponent={
+          <View style={styles.emptyContainer}>
+            <Text style={styles.emptyText}>You have no surprise bags</Text>
+          </View>
+        }
+      />
+    </SafeAreaView>
+  );
+};
+
+EmployeeHomeScreen.propTypes = {
+  navigation: PropTypes.object.isRequired,
+  route: PropTypes.object.isRequired,
 };
 
 const styles = StyleSheet.create({
@@ -187,12 +194,14 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: themeColors.background,
   },
+  scrollView: {
+    flexGrow: 1,
+  },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     padding: 20,
-    paddingTop: 50,
   },
   locationContainer: {
     flexDirection: 'row',
@@ -217,10 +226,6 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#6b6e56',
     marginLeft: 5,
-  },
-  distance: {
-    fontSize: 14,
-    color: '#82866b',
   },
   registrationContainer: {
     backgroundColor: '#FFFFFF',
@@ -306,8 +311,9 @@ const styles = StyleSheet.create({
   surpriseBagsTitle: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: '#000',
+    color: '#5c5f4c',
     marginBottom: 20,
+    marginLeft: 20,
   },
   shopBag: {
     alignItems: 'center',

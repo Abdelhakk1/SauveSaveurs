@@ -1,5 +1,3 @@
-// utils/favoriteUtils.js
-
 import { addToFavorites, removeFromFavorites } from '../Actions/storeActions';
 
 export const toggleFavorite = (item, dispatch, favorites) => {

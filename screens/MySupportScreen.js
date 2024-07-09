@@ -19,7 +19,7 @@ const MySupportScreen = () => {
         </Text>
         <View style={styles.contactInfo}>
           <Icon name="phone" size={24} color="#6b6e56" />
-          <Text style={styles.contactText}>+354 374747848</Text>
+          <Text style={styles.contactText}>+213 797577203</Text>
         </View>
         <View style={styles.contactInfo}>
           <Icon name="email" size={24} color="#6b6e56" />

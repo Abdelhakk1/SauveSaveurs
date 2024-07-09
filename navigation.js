@@ -5,7 +5,6 @@ const Stack = createNativeStackNavigator();
 
 import React from 'react';
 
-
 import OnboardingScreen from './screens/OnboardingScreen';
 import RoleSelectionScreen from './screens/RoleSelectionScreen';
 import UserSignUpScreen from './screens/UserSignUpScreen';
@@ -23,12 +22,10 @@ import MyPersonalInformation from './screens/MyPersonalInformation';
 import MyGeneralSettings from './screens/MyGeneralSettings';
 import ChangeLanguageScreen from './screens/ChangeLanguageScreen';
 import ChangePasswordScreen from './screens/ChangePasswordScreen';
-import DeleteAccountScreen from './screens/DeleteAccountScreen';
 import MySupportScreen from './screens/MySupportScreen';
 import SeeAllScreen from './screens/SeeAllScreen';
-import NotificationScreen from './screens/NotificationScreen';
 import EmployeeSignUpScreen from './EmployeeScreens/EmployeeSignUpScreen';
-import SignInScreen from './EmployeeScreens/EmployeeSignInScreen';
+import EmployeeSignInScreen from './EmployeeScreens/EmployeeSignInScreen';
 import EmployeeHomeScreen from './EmployeeScreens/EmployeeHomeScreen';
 import EmployeeReservationsScreen from './EmployeeScreens/EmployeeReservationsScreen';
 import EmployeeProfileScreen from './EmployeeScreens/EmployeeProfileScreen';
@@ -36,12 +33,21 @@ import ShopInformationScreen from './EmployeeScreens/ShopInformationScreen';
 import CompleteProfileScreen from './EmployeeScreens/CompleteProfileScreen';
 import SurpriseBagsScreen from './EmployeeScreens/SurpriseBagsScreen';
 import UploadSurpriseBagScreen from './EmployeeScreens/UploadSurpriseBagScreen';
+import SurpriseBagDetailsScreen from './EmployeeScreens/SurpriseBagDetailsScreen';
+import UpdateSurpriseBagScreen from './EmployeeScreens/UpdateSurpriseBagScreen';
+import EmployeePersonalInformationScreen from './EmployeeScreens/EmployeePersonalInformationScreen';
+import MyShopScreen from './EmployeeScreens/MyShopScreen';
+import ClientNotificationScreen from './screens/ClientNotificationScreen';
+import EmployeeNotificationScreen from './EmployeeScreens/EmployeeNotificationScreen';
+import EmployeeChangeLocationScreen from './EmployeeScreens/EmployeeChangeLocationScreen';
+import UserCompleteProfileScreen from './screens/UserCompleteProfileScreen';
+import SplashScreen from './screens/SplashScreen';
 
 export default function Navigation() {
   return (
     <NavigationContainer>
       <Stack.Navigator screenOptions={{ headerShown: false }}>
-    
+        <Stack.Screen name="SplashScreen" component={SplashScreen} />
         <Stack.Screen name="OnboardingScreen" component={OnboardingScreen} />
         <Stack.Screen name="RoleSelectionScreen" component={RoleSelectionScreen} />
         <Stack.Screen name="UserSignUpScreen" component={UserSignUpScreen} />
@@ -59,15 +65,10 @@ export default function Navigation() {
         <Stack.Screen name="MyGeneralSettings" component={MyGeneralSettings} />
         <Stack.Screen name="ChangeLanguageScreen" component={ChangeLanguageScreen} />
         <Stack.Screen name="ChangePasswordScreen" component={ChangePasswordScreen} />
-        <Stack.Screen name="DeleteAccountScreen" component={DeleteAccountScreen} />
         <Stack.Screen name="MySupportScreen" component={MySupportScreen} />
         <Stack.Screen name="SeeAllScreen" component={SeeAllScreen} />
-        <Stack.Screen name="NotificationScreen" component={NotificationScreen} />
-
-
-
         <Stack.Screen name="EmployeeSignUpScreen" component={EmployeeSignUpScreen} />
-        <Stack.Screen name="SignInScreen" component={SignInScreen} />
+        <Stack.Screen name="EmployeeSignInScreen" component={EmployeeSignInScreen} />
         <Stack.Screen name="EmployeeHomeScreen" component={EmployeeHomeScreen} />
         <Stack.Screen name="EmployeeReservationsScreen" component={EmployeeReservationsScreen} />
         <Stack.Screen name="EmployeeProfileScreen" component={EmployeeProfileScreen} />
@@ -75,24 +76,19 @@ export default function Navigation() {
         <Stack.Screen name="CompleteProfileScreen" component={CompleteProfileScreen} />
         <Stack.Screen name="SurpriseBagsScreen" component={SurpriseBagsScreen} />
         <Stack.Screen name="UploadSurpriseBagScreen" component={UploadSurpriseBagScreen} />
+        <Stack.Screen name="SurpriseBagDetailsScreen" component={SurpriseBagDetailsScreen} />
+        <Stack.Screen name="UpdateSurpriseBagScreen" component={UpdateSurpriseBagScreen} />
+        <Stack.Screen name="EmployeePersonalInformationScreen" component={EmployeePersonalInformationScreen} />
+        <Stack.Screen name="ClientNotificationScreen" component={ClientNotificationScreen} />
+        <Stack.Screen name="EmployeeNotificationScreen" component={EmployeeNotificationScreen} />
+        <Stack.Screen name="EmployeeChangeLocationScreen" component={EmployeeChangeLocationScreen} />
+        <Stack.Screen name="UserCompleteProfileScreen" component={UserCompleteProfileScreen} />
+
+        
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+        <Stack.Screen name="MyShopScreen" component={MyShopScreen} />
       </Stack.Navigator>
     </NavigationContainer>
   );

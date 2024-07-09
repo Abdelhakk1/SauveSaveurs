@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
@@ -8,24 +8,41 @@ import {
   KeyboardAvoidingView,
   Platform,
   ScrollView,
-  Linking,
+  Alert,
+  Modal
 } from 'react-native';
 import PropTypes from 'prop-types';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
+import { WebView } from 'react-native-webview';
+import { supabase } from '../database/supabaseClient';
+import { useDispatch } from 'react-redux';
+import { fetchShopDetails, fetchUserInfo } from '../Actions/storeActions';
 
 const ShopInformationScreen = ({ navigation, route }) => {
-  const { userId } = route.params || {};
+  const { userId, name, profilePicture } = route.params || {};
+  const [formSubmitted, setFormSubmitted] = useState(false);
+  const [modalVisible, setModalVisible] = useState(false);
+  const dispatch = useDispatch();
 
-  const handleOpenGoogleForm = () => {
-    const googleFormUrl = `https://docs.google.com/forms/d/e/1FAIpQLScV_yIPi5GNPnjOCKl2F-C6uY2-DsQtwPq_-CaX0rSw3E0f9A/viewform?usp=pp_url&entry.700735324=${userId}`;
-    Linking.openURL(googleFormUrl);
-  };
+  const googleFormUrl = `https://docs.google.com/forms/d/e/1FAIpQLScV_yIPi5GNPnjOCKl2F-C6uY2-DsQtwPq_-CaX0rSw3E0f9A/viewform?usp=pp_url&entry.700735324=${userId}`;
 
-  const handleDone = () => {
-    navigation.navigate('EmployeeMainTabs', {
-      screen: 'Home',
-      params: { userId, uploadSuccess: true },
-    });
+  const handleDone = async () => {
+    const { error } = await supabase
+      .from('shops')
+      .update({ status: 'pending' })
+      .eq('employee_id', userId);
+
+    if (error) {
+      console.error('Error updating shop status:', error);
+      Alert.alert('Error', 'There was an error updating your shop status. Please try again.');
+    } else {
+      await dispatch(fetchUserInfo(userId, 'employee'));
+      await dispatch(fetchShopDetails(userId)); // Ensure the state is updated
+      navigation.navigate('EmployeeMainTabs', {
+        screen: 'Home',
+        params: { userId, name, profilePicture, uploadSuccess: true },
+      });
+    }
   };
 
   return (
@@ -41,20 +58,53 @@ const ShopInformationScreen = ({ navigation, route }) => {
           <Text style={styles.headerTitle}>Shop Information</Text>
 
           <View style={styles.form}>
-            <TouchableOpacity style={styles.uploadContainer} onPress={handleOpenGoogleForm}>
-              <Text style={styles.uploadText}>Fill out the Shop Information and Upload your shop’s pdf document via Google Form</Text>
+            <TouchableOpacity
+              style={styles.uploadContainer}
+              onPress={() => setModalVisible(true)}
+            >
+              <Text style={styles.uploadText}>
+                Fill out the Shop Information and Upload your shop’s pdf document via Google Form
+              </Text>
             </TouchableOpacity>
           </View>
 
           <View style={styles.footer}>
             <TouchableOpacity
               onPress={handleDone}
-              style={styles.doneButton}
+              style={[styles.doneButton, !formSubmitted && styles.disabledButton]}
+              disabled={!formSubmitted}
             >
               <Text style={styles.buttonText}>Done</Text>
             </TouchableOpacity>
           </View>
         </ScrollView>
+
+        <Modal
+          animationType="slide"
+          transparent={false}
+          visible={modalVisible}
+          onRequestClose={() => {
+            setModalVisible(!modalVisible);
+          }}
+        >
+          <View style={{ flex: 1 }}>
+            <WebView
+              source={{ uri: googleFormUrl }}
+              onNavigationStateChange={navState => {
+                if (navState.url.includes('formResponse')) {
+                  setModalVisible(false);
+                  setFormSubmitted(true);
+                }
+              }}
+            />
+            <TouchableOpacity
+              style={styles.closeButton}
+              onPress={() => setModalVisible(false)}
+            >
+              <Text style={styles.closeButtonText}>Close</Text>
+            </TouchableOpacity>
+          </View>
+        </Modal>
       </KeyboardAvoidingView>
     </SafeAreaView>
   );
@@ -116,8 +166,24 @@ const styles = StyleSheet.create({
     borderRadius: 5,
     alignItems: 'center',
     marginTop: 20,
+    marginHorizontal: 90,
   },
   buttonText: {
+    color: '#fff',
+    fontSize: 18,
+    fontWeight: 'bold',
+  },
+  disabledButton: {
+    backgroundColor: '#ccc',
+  },
+  closeButton: {
+    backgroundColor: '#82866b',
+    padding: 10,
+    borderRadius: 5,
+    alignItems: 'center',
+    margin: 20,
+  },
+  closeButtonText: {
     color: '#fff',
     fontSize: 18,
     fontWeight: 'bold',

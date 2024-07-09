@@ -2,12 +2,7 @@ import React, { useState, useEffect } from 'react';
 import PropTypes from 'prop-types';
 import { useDispatch } from 'react-redux';
 import {
-  View,
-  Text,
-  Image,
-  StyleSheet,
-  ScrollView,
-  TouchableOpacity,
+  View, Text, Image, StyleSheet, ScrollView, TouchableOpacity,
 } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { supabase } from '../database/supabaseClient';
@@ -31,7 +26,17 @@ const MoreInformationScreen = ({ route }) => {
           throw shopError;
         }
 
-        setStore(shopData);
+        const { data: bagData, error: bagError } = await supabase
+          .from('surprise_bags')
+          .select('quantity_left')
+          .eq('shop_id', storeId)
+          .single();
+
+        if (bagError) {
+          throw bagError;
+        }
+
+        setStore({ ...shopData, quantity_left: bagData.quantity_left });
       } catch (error) {
         console.error('Error fetching store details:', error);
       }
@@ -43,6 +48,12 @@ const MoreInformationScreen = ({ route }) => {
   const handleAddToFavorites = () => {
     dispatch(addToFavorites(store));
     console.log('Added to favorites:', store);
+  };
+
+  const formatTime = (timeString) => {
+    const date = new Date(timeString);
+    if (isNaN(date)) return 'Invalid Date';
+    return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
   };
 
   if (!store) {
@@ -63,7 +74,7 @@ const MoreInformationScreen = ({ route }) => {
           style={styles.storeImage}
         />
         <View style={styles.storeInfoContainer}>
-          <Text style={styles.itemsLeft}>{`${store.quantity} left`}</Text>
+          <Text style={styles.itemsLeft}>{`${store.quantity_left} left`}</Text>
           <View style={styles.storeNameAndHeart}>
             <Text style={styles.storeName}>{store.shop_name}</Text>
             <TouchableOpacity style={styles.heartIconContainer} onPress={handleAddToFavorites}>
@@ -85,15 +96,15 @@ const MoreInformationScreen = ({ route }) => {
         </View>
         <View style={styles.infoRow}>
           <Text style={styles.infoLabel}>Opening Hour</Text>
-          <Text style={styles.infoValue}>{store.shop_opening_hour}</Text>
+          <Text style={styles.infoValue}>{formatTime(store.shop_opening_hour)}</Text>
         </View>
         <View style={styles.infoRow}>
           <Text style={styles.infoLabel}>Weekend</Text>
-          <Text style={styles.infoValue}>{store.shop_weekend}</Text>
+          <Text style={styles.infoValue}>{formatTime(store.shop_weekend)}</Text>
         </View>
-        <View className={styles.aboutSection}>
-          <Text className={styles.infoLabel}>About</Text>
-          <Text className={styles.aboutText}>{store.about_shop}</Text>
+        <View style={styles.aboutSection}>
+          <Text style={styles.infoLabel}>About</Text>
+          <Text style={styles.aboutText}>{store.about_shop}</Text>
         </View>
       </View>
     </ScrollView>
@@ -155,7 +166,7 @@ const styles = StyleSheet.create({
     paddingVertical: 4,
     color: '#FFFFFF',
     fontWeight: 'bold',
-    marginRight: 310,
+    marginRight: 300,
   },
   storeNameAndHeart: {
     flexDirection: 'row',
@@ -163,7 +174,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     position: 'absolute',
     bottom: 10,
-    left: 45,
+    left: 40,
     right: 10,
   },
   storeName: {
@@ -173,13 +184,13 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: '#FFFFFF',
     right: 35,
-    top: 130,
+    top: 170,
   },
   heartIconContainer: {
     backgroundColor: '#6b6e56',
     borderRadius: 50,
     padding: 8,
-    top: 130,
+    top: 170,
   },
   detailsContainer: {
     padding: 20,

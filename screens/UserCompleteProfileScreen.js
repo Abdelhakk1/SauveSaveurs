@@ -17,7 +17,7 @@ import { supabase } from '../database/supabaseClient';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import DateTimePickerModal from 'react-native-modal-datetime-picker';
 
-const CompleteProfileScreen = () => {
+const UserCompleteProfileScreen = () => {
   const navigation = useNavigation();
   const route = useRoute();
   const { userId } = route.params;
@@ -41,40 +41,40 @@ const CompleteProfileScreen = () => {
 
   const handleCompleteProfile = async () => {
     try {
-      // Check if the userId exists in the employees table
-      const { data: employee, error: checkError } = await supabase
-        .from('employees')
+      // Check if the userId exists in the clients table
+      const { error: checkError } = await supabase
+        .from('clients')
         .select('id')
         .eq('id', userId)
         .single();
 
-      if (checkError || !employee) {
-        throw new Error('Employee not found');
+      if (checkError) {
+        throw new Error('Client not found: ' + checkError.message);
       }
 
-      // Update the employee's profile with the address, date of birth, and profile picture
+      // Update the client's profile with the address, date of birth, and profile picture
       const { error: updateError } = await supabase
-        .from('employees')
-        .update({ address, date_of_birth: dateOfBirth.toISOString(), profile_pic_url: profilePicture })
+        .from('clients')
+        .update({ address: address, dob: dateOfBirth.toISOString(), profile_pic_url: profilePicture })
         .eq('id', userId);
 
       if (updateError) throw updateError;
 
-      // Retrieve the employee's name and profile picture
-      const { data: updatedEmployee, error: fetchError } = await supabase
-        .from('employees')
+      // Retrieve the client's name and profile picture
+      const { data: client, error: fetchError } = await supabase
+        .from('clients')
         .select('full_name, profile_pic_url')
         .eq('id', userId)
         .single();
 
-      if (fetchError || !updatedEmployee) throw new Error('Failed to fetch updated employee data');
+      if (fetchError) throw fetchError;
 
       Alert.alert('Success', 'Profile updated successfully');
 
-      // Navigate to EmployeeHomeScreen and pass the employee's name and profile picture as parameters
-      navigation.navigate('EmployeeMainTabs', {
+      // Navigate to HomeScreen and pass the client's name and profile picture as parameters
+      navigation.navigate('MainTabs', {
         screen: 'Home',
-        params: { userId: userId, name: updatedEmployee.full_name, profilePicture: updatedEmployee.profile_pic_url },
+        params: { userId: userId, fullName: client.full_name, profilePicture: client.profile_pic_url },
       });
     } catch (error) {
       Alert.alert('Error', error.message);
@@ -253,4 +253,4 @@ const styles = StyleSheet.create({
   },
 });
 
-export default CompleteProfileScreen;
+export default UserCompleteProfileScreen;

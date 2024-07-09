@@ -4,7 +4,7 @@ import Swiper from 'react-native-swiper';
 import { useNavigation } from '@react-navigation/native';
 
 const themeColors = {
-  background: '#f3f3f0',
+  background: '#ffffff',
   skipButton: '#676a61',
   titleText: '#5c5f4c',
   buttonText: '#ffffff',

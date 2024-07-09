@@ -9,11 +9,10 @@ const MyGeneralSettings = () => {
   const menuItems = [
     { id: '1', title: 'Change Language', iconName: 'translate', screen: 'ChangeLanguageScreen' },
     { id: '2', title: 'Change Password', iconName: 'lock-outline', screen: 'ChangePasswordScreen' },
-    { id: '3', title: 'Delete Account', iconName: 'delete-outline', screen: 'DeleteAccountScreen' }
   ];
 
   const renderItem = ({ item }) => (
-    <TouchableOpacity style={styles.menuItem} onPress={() => item.screen && navigation.navigate(item.screen)}>
+    <TouchableOpacity style={styles.menuItem} onPress={() => navigation.navigate(item.screen)}>
       <Icon name={item.iconName} size={24} color="#676a61" style={styles.icon} />
       <Text style={styles.menuText}>{item.title}</Text>
       <Icon name="chevron-right" size={24} color="#676a61" />

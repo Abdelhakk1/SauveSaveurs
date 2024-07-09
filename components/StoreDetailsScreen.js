@@ -1,20 +1,31 @@
-import React, { useState, useEffect } from 'react';
-import PropTypes from 'prop-types';
-import {
-  View,
-  Text,
-  Image,
-  StyleSheet,
-  ScrollView,
-  TouchableOpacity,
-  Modal,
-  Alert,
-} from 'react-native';
+import React, { useEffect, useState } from 'react';
+import { View, Text, Image, ScrollView, TouchableOpacity, Modal, Alert, StyleSheet } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { useNavigation } from '@react-navigation/native';
-import { supabase } from '../database/supabaseClient';
 import { useDispatch, useSelector } from 'react-redux';
-import { toggleFavorite } from '../utils/favoriteUtils'; // Import the utility function
+import { supabase } from '../database/supabaseClient';
+import PropTypes from 'prop-types';
+import { toggleFavorite } from '../utils/favoriteUtils';
+import { addToCurrentOrders, updateQuantityLeft, createOrder } from '../Actions/storeActions';
+
+const generateUUID = () => {
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function (c) {
+    const r = (Math.random() * 16) | 0,
+      v = c === 'x' ? r : (r & 0x3) | 0x8;
+    return v.toString(16);
+  });
+};
+
+const formatPickupTime = (time, date = new Date()) => {
+  const [hours, minutes] = time.replace(/(am|pm)/i, '').split(':').map(Number);
+  const isPM = /pm$/i.test(time);
+  const formattedHours = isPM ? (hours % 12) + 12 : hours % 12;
+
+  const formattedDate = new Date(date);
+  formattedDate.setHours(formattedHours, minutes, 0, 0);
+
+  return formattedDate.toISOString();
+};
 
 const StoreDetailsScreen = ({ route }) => {
   const navigation = useNavigation();
@@ -26,30 +37,47 @@ const StoreDetailsScreen = ({ route }) => {
   const [bagDetails, setBagDetails] = useState(null);
   const [shopDetails, setShopDetails] = useState(null);
   const [userId, setUserId] = useState(null);
+  const [fullName, setFullName] = useState(null);
 
   useEffect(() => {
-    const fetchUserId = async () => {
+    const fetchUserDetails = async () => {
       const { data, error } = await supabase.auth.getUser();
       if (error) {
         console.error('Error fetching user:', error);
       } else {
         setUserId(data.user.id);
+        const { data: userData, error: userError } = await supabase
+          .from('clients')
+          .select('full_name')
+          .eq('id', data.user.id)
+          .single();
+        if (userError) {
+          console.error('Error fetching user details:', userError);
+        } else {
+          setFullName(userData.full_name);
+        }
       }
     };
 
-    fetchUserId();
+    fetchUserDetails();
 
     if (route.params?.store) {
-      fetchDetails(route.params.store.id);
+      const { bag_id, shop_id } = route.params.store;
+      if (bag_id && shop_id) {
+        fetchDetails(bag_id, shop_id);
+      } else {
+        Alert.alert('Error', 'Invalid shop or bag ID.');
+        navigation.goBack();
+      }
     }
   }, [route.params?.store]);
 
-  const fetchDetails = async (storeId) => {
+  const fetchDetails = async (bagId, shopId) => {
     try {
       const { data: bagData, error: bagError } = await supabase
         .from('surprise_bags')
         .select('*')
-        .eq('id', storeId)
+        .eq('id', bagId)
         .single();
 
       if (bagError) {
@@ -61,7 +89,7 @@ const StoreDetailsScreen = ({ route }) => {
       const { data: shopData, error: shopError } = await supabase
         .from('shops')
         .select('*')
-        .eq('id', bagData.shop_id)
+        .eq('id', shopId)
         .single();
 
       if (shopError) {
@@ -93,12 +121,6 @@ const StoreDetailsScreen = ({ route }) => {
     setQuantity((prev) => (prev > 1 ? prev - 1 : 1));
   };
 
-  const generateOrderId = () => {
-    const timestamp = Date.now().toString(36);
-    const randomString = Math.random().toString(36).substring(2, 7).toUpperCase();
-    return `${timestamp}-${randomString}`;
-  };
-
   const handleReserve = async () => {
     if (!userId) {
       Alert.alert('Error', 'User not authenticated.');
@@ -106,27 +128,30 @@ const StoreDetailsScreen = ({ route }) => {
     }
 
     try {
+      const [pickupStart, pickupEnd] = bagDetails.pickup_hour.split('-').map(time => time.trim());
+
       const reservation = {
-        order_id: generateOrderId(),
+        order_id: generateUUID(),
         status: 'Pending',
         amount: (parseFloat(bagDetails.price) * quantity).toFixed(2),
         location: shopDetails.shop_address,
         pickup_hour: bagDetails.pickup_hour,
-        pickup_time: '2024-05-15T12:30:00', // Example pickup time in ISO format, adjust as needed
+        pickup_start_time: formatPickupTime(pickupStart),
+        pickup_end_time: formatPickupTime(pickupEnd),
+        pickup_time: formatPickupTime(pickupEnd),
         surprise_bag_id: bagDetails.id,
         user_id: userId,
+        full_name: fullName,
         bag_name: bagDetails.name,
         shop_name: shopDetails.shop_name,
+        image_url: bagDetails.image_url,
+        employee_id: shopDetails.employee_id, // Add employee ID
       };
 
-      const { error } = await supabase
-        .from('reservations')
-        .insert([reservation]);
+      dispatch(createOrder(reservation, userId, shopDetails.employee_id));
 
-      if (error) {
-        throw error;
-      }
-
+      dispatch(addToCurrentOrders(reservation));
+      dispatch(updateQuantityLeft(bagDetails.id, bagDetails.quantity_left - quantity));
       console.log('Reservation added:', reservation);
       closeReserveModal();
       navigation.navigate('OrderDoneScreen', { orderId: reservation.order_id });
@@ -138,7 +163,6 @@ const StoreDetailsScreen = ({ route }) => {
 
   const isFavorite = favorites.some(favorite => favorite.id === route.params?.store.id);
 
-  // Ensure price is a number and formatted properly
   const price = bagDetails ? (parseFloat(bagDetails.price) * quantity).toFixed(2) : '0.00';
 
   if (!bagDetails || !shopDetails) {
@@ -163,7 +187,7 @@ const StoreDetailsScreen = ({ route }) => {
           style={styles.storeImage}
         />
         <View style={styles.storeInfoContainer}>
-          <Text style={styles.itemsLeft}>{`${bagDetails.quantity} left`}</Text>
+          <Text style={styles.itemsLeft}>{`${bagDetails.quantity_left} left`}</Text>
           <View style={styles.storeNameAndHeart}>
             <Text style={styles.storeName}>{shopDetails.shop_name}</Text>
             <TouchableOpacity style={styles.heartIconContainer} onPress={() => toggleFavorite(route.params?.store, dispatch, favorites)}>
@@ -176,7 +200,7 @@ const StoreDetailsScreen = ({ route }) => {
       <View style={styles.detailsContainer}>
         <View style={styles.surpriseBagContainer}>
           <Text style={styles.surpriseBagTitle}>{bagDetails.name}</Text>
-          <Text style={styles.price}>${price}</Text>
+          <Text style={styles.price}>{`${price} DZD`}</Text>
           <Text style={styles.pickupTime}>Pick up: {bagDetails.pickup_hour}</Text>
           <View style={styles.bagInfoContainer}>
             <Image
@@ -240,7 +264,7 @@ const StoreDetailsScreen = ({ route }) => {
                   <Icon name="plus" size={24} color="#6b6e56" />
                 </TouchableOpacity>
               </View>
-              <Text style={styles.modalTotal}>Total: ${price}</Text>
+              <Text style={styles.modalTotal}>Total: {`${price} DZD`}</Text>
               <TouchableOpacity
                 style={styles.makeReservationButton}
                 onPress={handleReserve}
@@ -290,6 +314,8 @@ StoreDetailsScreen.propTypes = {
     params: PropTypes.shape({
       store: PropTypes.shape({
         id: PropTypes.string.isRequired,
+        bag_id: PropTypes.string,
+        shop_id: PropTypes.string,
       }).isRequired,
     }).isRequired,
   }).isRequired,
@@ -348,7 +374,7 @@ const styles = StyleSheet.create({
     paddingVertical: 4,
     color: '#FFFFFF',
     fontWeight: 'bold',
-    marginRight: 310,
+    marginRight: 300,
   },
   storeNameAndHeart: {
     flexDirection: 'row',
@@ -356,7 +382,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     position: 'absolute',
     bottom: 10,
-    left: 45,
+    left: 40,
     right: 10,
   },
   storeName: {
@@ -366,13 +392,13 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: '#FFFFFF',
     right: 35,
-    top: 130,
+    top: 170,
   },
   heartIconContainer: {
     backgroundColor: '#6b6e56',
     borderRadius: 50,
     padding: 8,
-    top: 130,
+    top: 170,
   },
   detailsContainer: {
     padding: 20,

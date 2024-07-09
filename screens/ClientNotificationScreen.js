@@ -1,20 +1,21 @@
 import React from 'react';
-import PropTypes from 'prop-types';
-import {
-  View,
-  Text,
-  FlatList,
-  StyleSheet,
-  TouchableOpacity,
-} from 'react-native';
+import { View, Text, FlatList, StyleSheet, TouchableOpacity } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
+import { useDispatch, useSelector } from 'react-redux';
+import { clearNotifications } from '../Actions/storeActions';
+import PropTypes from 'prop-types';
 
-const notifications = [
-  { id: '1', message: 'Welcome to SauveSaveurs app.', time: '1 day ago' },
-  { id: '2', message: 'Your Reswevation was successful.', time: '1 hour ago' },
-];
+const ClientNotificationScreen = ({ navigation }) => {
+  const dispatch = useDispatch();
+  const notifications = useSelector(state => state.store.clientNotifications);
+  const userId = useSelector(state => state.store.userInfo.id);
 
-const NotificationScreen = ({ navigation }) => {
+  const handleClearNotifications = () => {
+    if (userId) {
+      dispatch(clearNotifications(userId, 'client'));
+    }
+  };
+
   const renderItem = ({ item }) => (
     <View style={styles.notificationItem}>
       <View style={styles.iconContainer}>
@@ -22,7 +23,7 @@ const NotificationScreen = ({ navigation }) => {
       </View>
       <View style={styles.messageContainer}>
         <Text style={styles.messageText}>{item.message}</Text>
-        <Text style={styles.timeText}>{item.time}</Text>
+        <Text style={styles.timeText}>{item.created_at}</Text>
       </View>
     </View>
   );
@@ -33,21 +34,22 @@ const NotificationScreen = ({ navigation }) => {
         <TouchableOpacity onPress={() => navigation.goBack()}>
           <Icon name="arrow-left" size={24} color="#000" />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Notification</Text>
+        <Text style={styles.headerTitle}>Notifications</Text>
       </View>
       <FlatList
         data={notifications}
         renderItem={renderItem}
-        keyExtractor={item => item.id}
+        keyExtractor={item => item.id ? item.id.toString() : Math.random().toString(36).substr(2, 9)}
       />
+      <TouchableOpacity style={styles.clearButton} onPress={handleClearNotifications}>
+        <Text style={styles.clearButtonText}>Clear Notifications</Text>
+      </TouchableOpacity>
     </View>
   );
 };
 
-NotificationScreen.propTypes = {
-  navigation: PropTypes.shape({
-    goBack: PropTypes.func.isRequired,
-  }).isRequired,
+ClientNotificationScreen.propTypes = {
+  navigation: PropTypes.object.isRequired,
 };
 
 const styles = StyleSheet.create({
@@ -60,7 +62,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     paddingVertical: 20,
-    top: 15,
+    marginTop: 15,
   },
   headerTitle: {
     fontSize: 18,
@@ -95,6 +97,18 @@ const styles = StyleSheet.create({
     color: '#82866b',
     marginTop: 5,
   },
+  clearButton: {
+    backgroundColor: '#6b6e56',
+    borderRadius: 10,
+    padding: 15,
+    alignItems: 'center',
+    margin: 20,
+  },
+  clearButtonText: {
+    color: '#FFFFFF',
+    fontSize: 18,
+    fontWeight: 'bold',
+  },
 });
 
-export default NotificationScreen;
+export default ClientNotificationScreen;

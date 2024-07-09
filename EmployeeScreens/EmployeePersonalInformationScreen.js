@@ -5,16 +5,16 @@ import DateTimePickerModal from 'react-native-modal-datetime-picker';
 import { useNavigation } from '@react-navigation/native';
 import { useDispatch, useSelector } from 'react-redux';
 import { supabase } from '../database/supabaseClient';
-import { updateUserInfo, fetchUserInfo } from '../Actions/storeActions';
+import { updateUserInfo } from '../Actions/storeActions';
 
-const MyPersonalInformation = () => {
+const EmployeePersonalInformationScreen = () => {
   const navigation = useNavigation();
   const dispatch = useDispatch();
   const userInfo = useSelector(state => state.store.userInfo);
   const [userData, setUserData] = useState({
     name: userInfo.full_name || '',
     email: userInfo.email || '',
-    dob: userInfo.dob || '',
+    dob: userInfo.date_of_birth || '',
     address: userInfo.address || '',
   });
   const [profilePicUrl, setProfilePicUrl] = useState(userInfo.profile_pic_url || '');
@@ -36,16 +36,12 @@ const MyPersonalInformation = () => {
           Alert.alert('Error', 'User not logged in.');
           return;
         }
-        const user = session.user;
-        if (!user) {
-          Alert.alert('Error', 'User not logged in.');
-          return;
-        }
+        const userId = session.user.id;
 
         const { data, error } = await supabase
-          .from('clients')
-          .select('full_name, email, dob, address, profile_pic_url')
-          .eq('id', user.id)
+          .from('employees')
+          .select('full_name, email, date_of_birth, address, profile_pic_url')
+          .eq('id', userId)
           .single();
 
         if (error) {
@@ -71,6 +67,7 @@ const MyPersonalInformation = () => {
 
   const handleProfilePictureSelect = async (url) => {
     setProfilePicUrl(url);
+    setIsEdited(true);
 
     try {
       const { data: { session } } = await supabase.auth.getSession();
@@ -81,7 +78,7 @@ const MyPersonalInformation = () => {
       const userId = session.user.id;
 
       const { error } = await supabase
-        .from('clients')
+        .from('employees')
         .update({ profile_pic_url: url })
         .eq('id', userId);
 
@@ -89,9 +86,8 @@ const MyPersonalInformation = () => {
         throw error;
       }
 
-      const updatedUser = { ...userInfo, profile_pic_url: url };
-      dispatch(updateUserInfo(updatedUser));
-      dispatch(fetchUserInfo(userId, 'client'));
+      const updatedUserInfo = { ...userInfo, profile_pic_url: url };
+      dispatch(updateUserInfo(updatedUserInfo));
       Alert.alert('Success', 'Profile picture updated successfully.');
     } catch (error) {
       console.error('Error updating profile picture:', error);
@@ -111,13 +107,13 @@ const MyPersonalInformation = () => {
       const updates = {
         full_name: userData.name,
         email: userData.email,
-        dob: userData.dob,
+        date_of_birth: userData.dob,
         address: userData.address,
         profile_pic_url: profilePicUrl,
       };
 
       const { error } = await supabase
-        .from('clients')
+        .from('employees')
         .update(updates)
         .eq('id', userId);
 
@@ -126,7 +122,6 @@ const MyPersonalInformation = () => {
       }
 
       dispatch(updateUserInfo(updates));
-      dispatch(fetchUserInfo(userId, 'client'));
       Alert.alert('Success', 'User information updated successfully.');
       setIsEdited(false);
     } catch (error) {
@@ -303,4 +298,4 @@ const styles = StyleSheet.create({
   },
 });
 
-export default MyPersonalInformation;
+export default EmployeePersonalInformationScreen;

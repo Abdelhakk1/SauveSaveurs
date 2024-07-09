@@ -7,16 +7,16 @@ import {
   Platform,
   Alert
 } from 'react-native';
-import MapView, { Marker, Callout } from 'react-native-maps';
+import MapView, { Marker } from 'react-native-maps';
 import * as Location from 'expo-location';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { useNavigation } from '@react-navigation/native';
 import PropTypes from 'prop-types';
 import { supabase } from '../database/supabaseClient';
 
-const ChangeLocationScreen = ({ route }) => {
+const EmployeeChangeLocationScreen = ({ route }) => {
   const navigation = useNavigation();
-  const { userId } = route.params || {};
+  const { shopId } = route.params || {};
 
   const [location, setLocation] = useState(null);
   const [region, setRegion] = useState({
@@ -26,7 +26,6 @@ const ChangeLocationScreen = ({ route }) => {
     longitudeDelta: 0.0421
   });
   const [address, setAddress] = useState('');
-  const [shops, setShops] = useState([]);
 
   useEffect(() => {
     (async () => {
@@ -37,64 +36,57 @@ const ChangeLocationScreen = ({ route }) => {
       }
 
       let { coords } = await Location.getCurrentPositionAsync({});
-      if (coords) {
-        setLocation(coords);
-        setRegion({
-          latitude: coords.latitude,
-          longitude: coords.longitude,
-          latitudeDelta: 0.0922,
-          longitudeDelta: 0.0421
-        });
+      setLocation(coords);
+      setRegion({
+        latitude: coords.latitude,
+        longitude: coords.longitude,
+        latitudeDelta: 0.0922,
+        longitudeDelta: 0.0421
+      });
 
-        const addressResponse = await Location.reverseGeocodeAsync(coords);
-        const currentAddress = addressResponse[0];
-        setAddress(`${currentAddress.street}, ${currentAddress.city}`);
-      }
+      const addressResponse = await Location.reverseGeocodeAsync(coords);
+      const currentAddress = addressResponse[0];
+      setAddress(`${currentAddress.street}, ${currentAddress.city}`);
     })();
-
-    const fetchShops = async () => {
-      try {
-        const { data: shopsData, error } = await supabase
-          .from('shops')
-          .select('id, shop_name, shop_opening_hour, shop_weekend, latitude, longitude');
-
-        if (error) {
-          throw error;
-        }
-
-        setShops(shopsData);
-      } catch (error) {
-        console.error('Error fetching shops:', error);
-        Alert.alert('Error', 'Failed to fetch shops.');
-      }
-    };
-
-    fetchShops();
   }, []);
 
   const handleUseCurrentLocation = async () => {
     try {
       let { coords } = await Location.getCurrentPositionAsync({});
-      if (coords) {
-        setLocation(coords);
-        setRegion({
-          latitude: coords.latitude,
-          longitude: coords.longitude,
-          latitudeDelta: 0.0922,
-          longitudeDelta: 0.0421
-        });
+      setLocation(coords);
+      setRegion({
+        latitude: coords.latitude,
+        longitude: coords.longitude,
+        latitudeDelta: 0.0922,
+        longitudeDelta: 0.0421
+      });
 
-        const addressResponse = await Location.reverseGeocodeAsync(coords);
-        const currentAddress = addressResponse[0];
-        setAddress(`${currentAddress.street}, ${currentAddress.city}`);
+      const addressResponse = await Location.reverseGeocodeAsync(coords);
+      const currentAddress = addressResponse[0];
+      setAddress(`${currentAddress.street}, ${currentAddress.city}`);
 
-        Alert.alert('Success', 'Current location fetched successfully.');
-      } else {
-        Alert.alert('Error', 'Failed to fetch current location.');
-      }
+      Alert.alert('Success', 'Current location fetched successfully.');
     } catch (error) {
       console.error('Error fetching current location:', error);
       Alert.alert('Error', 'Failed to fetch current location.');
+    }
+  };
+
+  const handleUseSelectedLocation = () => {
+    if (region) {
+      setLocation({
+        latitude: region.latitude,
+        longitude: region.longitude
+      });
+
+      const addressResponse = Location.reverseGeocodeAsync({
+        latitude: region.latitude,
+        longitude: region.longitude
+      });
+      addressResponse.then((result) => {
+        const selectedAddress = result[0];
+        setAddress(`${selectedAddress.street}, ${selectedAddress.city}`);
+      });
     }
   };
 
@@ -106,13 +98,13 @@ const ChangeLocationScreen = ({ route }) => {
 
     try {
       const { error } = await supabase
-        .from('clients')
+        .from('shops')
         .update({
           latitude: location.latitude,
           longitude: location.longitude,
-          address: address
+          shop_address: address // Correct column name
         })
-        .eq('id', userId);
+        .eq('id', shopId);
 
       if (error) throw error;
 
@@ -124,16 +116,10 @@ const ChangeLocationScreen = ({ route }) => {
     }
   };
 
-  const formatTime = (timeString) => {
-    const date = new Date(timeString);
-    if (isNaN(date)) return 'Invalid Date';
-    return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-  };
-
-  if (!userId) {
+  if (!shopId) {
     return (
       <View style={styles.container}>
-        <Text style={styles.errorText}>User ID is missing. Please try again.</Text>
+        <Text style={styles.errorText}>Shop ID is missing. Please try again.</Text>
       </View>
     );
   }
@@ -154,39 +140,23 @@ const ChangeLocationScreen = ({ route }) => {
           region={region}
           onRegionChangeComplete={(reg) => setRegion(reg)}
         >
-          {location && (
-            <Marker
-              coordinate={{
-                latitude: location.latitude,
-                longitude: location.longitude,
-              }}
-              title="Selected Location"
-              pinColor="red"
-            />
-          )}
-          {shops.map((shop) => (
-            <Marker
-              key={shop.id}
-              coordinate={{
-                latitude: shop.latitude,
-                longitude: shop.longitude,
-              }}
-              pinColor="blue"
-            >
-              <Callout>
-                <View style={styles.callout}>
-                  <Text style={styles.calloutTitle}>{shop.shop_name}</Text>
-                  <Text>Opening Hours: {formatTime(shop.shop_opening_hour)}</Text>
-                  <Text>Weekend Hours: {formatTime(shop.shop_weekend)}</Text>
-                </View>
-              </Callout>
-            </Marker>
-          ))}
+          <Marker
+            coordinate={{
+              latitude: region.latitude,
+              longitude: region.longitude,
+            }}
+            title="Selected Location"
+            pinColor="red"
+          />
         </MapView>
       </View>
 
       <TouchableOpacity style={styles.locationButton} onPress={handleUseCurrentLocation}>
         <Text style={styles.buttonText}>Use my current location</Text>
+      </TouchableOpacity>
+
+      <TouchableOpacity style={styles.locationButton} onPress={handleUseSelectedLocation}>
+        <Text style={styles.buttonText}>Use this location</Text>
       </TouchableOpacity>
       
       <TouchableOpacity style={styles.applyButton} onPress={handleApplyLocation}>
@@ -196,10 +166,10 @@ const ChangeLocationScreen = ({ route }) => {
   );
 };
 
-ChangeLocationScreen.propTypes = {
+EmployeeChangeLocationScreen.propTypes = {
   route: PropTypes.shape({
     params: PropTypes.shape({
-      userId: PropTypes.string.isRequired,
+      shopId: PropTypes.string.isRequired,
     }),
   }).isRequired,
 };
@@ -237,15 +207,6 @@ const styles = StyleSheet.create({
   map: {
     ...StyleSheet.absoluteFillObject,
   },
-  callout: {
-    width: 200,
-    padding: 10,
-    backgroundColor: 'white',
-    borderRadius: 10,
-  },
-  calloutTitle: {
-    fontWeight: 'bold',
-  },
   locationButton: {
     backgroundColor: '#abae9c', 
     padding: 15,
@@ -253,6 +214,7 @@ const styles = StyleSheet.create({
     marginBottom: 10,
     alignSelf: 'center', 
     width: '60%',
+    top: 10,
   },
   applyButton: {
     backgroundColor: '#abae9c', 
@@ -260,6 +222,7 @@ const styles = StyleSheet.create({
     borderRadius: 25,
     alignSelf: 'center', 
     width: '60%',
+    top: 10,
   },
   buttonText: {
     textAlign: 'center',
@@ -274,4 +237,4 @@ const styles = StyleSheet.create({
   },
 });
 
-export default ChangeLocationScreen;
+export default EmployeeChangeLocationScreen;
